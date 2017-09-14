@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 
 import rospy
+import math
+import tf
 from geometry_msgs.msg import PoseStamped
 from styx_msgs.msg import Lane, Waypoint
-
-import math
+from std_msgs.msg import Int32
 
 '''
 This node will publish waypoints from the car's current position to some `x` distance ahead.
@@ -22,7 +23,7 @@ TODO (for Yousuf and Aaron): Stopline location for each traffic light.
 '''
 
 LOOKAHEAD_WPS = 200 # Number of waypoints we will publish. You can change this number
-
+DEBUG_MODE = False
 
 class WaypointUpdater(object):
     def __init__(self):
@@ -31,25 +32,28 @@ class WaypointUpdater(object):
         rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
         rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
 
-        # TODO: Add a subscriber for /traffic_waypoint and /obstacle_waypoint below
-
+        # TODO: Add a subscriber for /traffic_waypoint and /obstacle_waypoint below        
+        rospy.Subscriber('/traffic_waypoint', Int32, self.traffic_cb)
+        rospy.Subscriber('/obstacle_waypoint', Lane, self.obstacle_cb)
 
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
-
-        # TODO: Add other member variables you need below
+        self.cur_pose = None
+        self.waypoints = None        
 
         rospy.spin()
 
     def pose_cb(self, msg):
-        # TODO: Implement
-        pass
+        self.cur_pose = msg.pose        
+        self.publish()
 
-    def waypoints_cb(self, waypoints):
-        # TODO: Implement
-        pass
+    def waypoints_cb(self, lane):
+        # do this once and not all the time
+        if self.waypoints is None:
+            self.waypoints = lane.waypoints
+            self.publish()
 
     def traffic_cb(self, msg):
-        # TODO: Callback for /traffic_waypoint message. Implement
+        # TODO: Callback for /traffic_waypoint message. We will implement it later
         pass
 
     def obstacle_cb(self, msg):
@@ -69,7 +73,58 @@ class WaypointUpdater(object):
             dist += dl(waypoints[wp1].pose.pose.position, waypoints[i].pose.pose.position)
             wp1 = i
         return dist
+    
+    def closest_waypoint(self, pose, waypoints):
+        # simply take the code from the path planning module and re-implement it here
+        closest_len = 100000
+        closest_waypoint = 0
+        dl = lambda a, b: math.sqrt((a.x-b.x)**2 + (a.y-b.y)**2)
+        for index, waypoint in enumerate(self.waypoints):
+            dist = dl(pose.position, waypoint.pose.pose.position)
+            if (dist < closest_len):
+                closest_len = dist
+                closest_waypoint = index
+                
+        return closest_waypoint
 
+    def next_waypoint(self, pose, waypoints):
+        # same concepts from path planning in here
+        closest_waypoint = self.closest_waypoint(pose, waypoints)
+        map_x = waypoints[closest_waypoint].pose.pose.position.x
+        map_y = waypoints[closest_waypoint].pose.pose.position.y
+
+        heading = math.atan2((map_y - pose.position.y), (map_x - pose.position.x))
+        quaternion = (pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w)
+        _, _, yaw = tf.transformations.euler_from_quaternion(quaternion)
+        angle = abs(yaw - heading)
+
+        if angle > (math.pi / 4):        
+            closest_waypoint += 1
+        
+        return closest_waypoint
+
+    def publish(self):
+        
+        if self.cur_pose is not None:
+            next_waypoint_index = self.next_waypoint(self.cur_pose, self.waypoints)
+            lookahead_waypoints = self.waypoints[next_waypoint_index:next_waypoint_index+LOOKAHEAD_WPS]
+            
+            # set the velocity for lookahead waypoints
+            for i in range(len(lookahead_waypoints) - 1):                
+                # convert 10 miles per hour to meters per sec
+                self.set_waypoint_velocity(lookahead_waypoints, i, (10 * 1609.34) / (60 * 60))
+
+            if DEBUG_MODE:
+                posx = self.waypoints[next_waypoint_index].pose.pose.position.x
+                posy = self.waypoints[next_waypoint_index].pose.pose.position.y
+                rospy.loginfo("Closest waypoint: [index=%d posx=%f posy=%f]", next_waypoint_index, posx, posy)
+
+            lane = Lane()
+            lane.header.frame_id = '/world'
+            lane.header.stamp = rospy.Time(0)
+            lane.waypoints = lookahead_waypoints
+            
+            self.final_waypoints_pub.publish(lane)
 
 if __name__ == '__main__':
     try:
