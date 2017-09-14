@@ -55,6 +55,11 @@ class DBWNode(object):
                                          BrakeCmd, queue_size=1)
 
 
+        # other variables needed 
+        self.previous_timestamp = rospy.get_rostime().secs
+        self.current_timestamp = 0.0
+        self.del_time = 0.0
+
         self.dbw_enabled = False
         # TODO: Create `TwistController` object
         self.controller = TwistController()
@@ -74,7 +79,13 @@ class DBWNode(object):
             #                                                     <proposed angular velocity>,
             #                                                     <current linear velocity>,
             #                                                     <dbw status>,
-            #                                                     <any other argument you need>)
+            #                                                     <any other argument you need>
+            #                                                     <del_time>)
+
+            self.current_timestamp = rospy.get_rostime().secs
+            self.del_time = self.current_timestamp - self.previous_timestamp
+            self.previous_timestamp = self.current_timestamp 
+
             throttle, brake, steering = self.controller.control()
             # if self.dbw_enabled:
             #     self.publish(throttle, brake, steering)
