@@ -56,6 +56,11 @@ class DBWNode(object):
 
 
         # other variables needed 
+        # current_pose, current_volecity, timestamp for PID
+
+        self.final_waypoints = None
+        self.current_pose = None # is there a topic for current pose? need to subscribe to it
+        self.current_volecity = 0.0 # is there a topic for current velocity? need to subscribe to it
         self.previous_timestamp = rospy.get_rostime().secs
         self.current_timestamp = 0.0
         self.del_time = 0.0
@@ -82,9 +87,18 @@ class DBWNode(object):
             #                                                     <any other argument you need>
             #                                                     <del_time>)
 
+            # in order to use the controller we need to the following
+            # for throttle controller: we need the current speed error and the del time
+            # for the steering error: we need the CTE to guide us back to the center, but it seems like the
+            #   yaw controller will return a steering angle, do we still need a CTE?
+
             self.current_timestamp = rospy.get_rostime().secs
             self.del_time = self.current_timestamp - self.previous_timestamp
             self.previous_timestamp = self.current_timestamp 
+            vel_err_x = self.final_waypoints[0].twist.twist.linear.x - self.current_volecity
+
+
+
 
             throttle, brake, steering = self.controller.control()
             # if self.dbw_enabled:
@@ -110,12 +124,19 @@ class DBWNode(object):
         bcmd.pedal_cmd = brake
         self.brake_pub.publish(bcmd)
 
-    def final_waypoints_cb(self):
-        # @TODO
-        pass
+    def final_waypoints_cb(self, final_waypoints):
+        self.final_waypoints = final_waypoints
 
     def dbw_enabled_cb(self, dbw_enabled):
         self.dbw_enabled = dbw_enabled
+
+    def CTE(self, way_points, current_pos):
+
+        return cte
+
+
+
+
 
 if __name__ == '__main__':
     DBWNode()

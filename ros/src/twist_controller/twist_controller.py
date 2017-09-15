@@ -32,11 +32,6 @@ class TwistController(object):
         self.Steer_PID = PID(kp = 0, ki = 0, kd = 0)    # will need to tune this
         self.Throttle_PID = PID(kp = 1, ki = 0, kd = 0) #  will need to tune this
 
-        
-
-        # find the velocity error and angle error for the PID controller
-
-
 
 
 
