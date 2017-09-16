@@ -11,29 +11,33 @@ ONE_MPH = 0.44704
 class TwistController(object):
     def __init__(self):
         # TODO: Implement
+        self.wheel_base = rospy.get_param('~wheel_base', 2.8498)
+        self.steer_ratio = rospy.get_param('~steer_ratio', 14.8)
+        self.max_lat_accel = rospy.get_param('~max_lat_accel', 3.)
+        self.max_steer_angle = rospy.get_param('~max_steer_angle', 8.)
         
 
 
         pass
 
-    def control(self, lin_vel, ang_vel, current_lin_vel, dbw_status):
+    def control(self, lin_vel, ang_vel, current_lin_vel, dbw_status, del_time, vel_err):
         # TODO: Implement
         # probably should make a PID controller for steer and throttle
         
         # create a PID object for velocity and steer
         # create a Yaw_controller to get the steer angle
 
-        self.Steer_angle = yaw_controller(wheel_base = wheel_base, steer_ratio = steer_ratio,
-         								  min_speed = min_speed, max_lat_accel = max_lat_accel, 
-         								  max_steer_angle = max_steer_angle)
+        self.Steer_angle = yaw_controller(wheel_base = self.wheel_base, steer_ratio = self.steer_ratio,
+         								  min_speed = self.min_speed, max_lat_accel = self.max_lat_accel, 
+         								  max_steer_angle = self.max_steer_angle)
 
         next_steer = self.Steer_angle.get_steering(lin_vel, ang_vel, current_lin_vel)
 
-        self.Steer_PID = PID(kp = 0, ki = 0, kd = 0)    # will need to tune this
         self.Throttle_PID = PID(kp = 1, ki = 0, kd = 0) #  will need to tune this
+        throtte = Throttle_PID.step(vel_err, del_time)
 
 
 
 
         # Return throttle, brake, steer
-        return 1., 0., 0.
+        return throttle, 0., next_steer
