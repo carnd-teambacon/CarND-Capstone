@@ -33,11 +33,15 @@ class TwistController(object):
 
         next_steer = self.Steer_angle.get_steering(lin_vel, ang_vel, current_lin_vel)
 
-        self.Throttle_PID = PID(kp = 1, ki = 0, kd = 0) #  will need to tune this
+        self.Throttle_PID = PID(kp = 0.5, ki = 0, kd = 0) #  will need to tune this
         throtte = Throttle_PID.step(vel_err, del_time)
 
+        if lin_vel.twist.twist.linear.x > 0:
+        	brake = 0
+        else:
+        	brake = 1
 
 
 
         # Return throttle, brake, steer
-        return throttle, 0., next_steer
+        return throttle, brake, next_steer

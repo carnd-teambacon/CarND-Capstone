@@ -100,10 +100,12 @@ class DBWNode(object):
 
 
 
-            throttle, brake, steering = self.controller.control()
-            # if self.dbw_enabled:
-            #     self.publish(throttle, brake, steering)
-            self.publish(throttle, brake, steering)
+            throttle, brake, steering = self.controller.control(final_waypoints[0].twist.twist.linear, final_waypoints[0].twist.twist.angular,
+                                                                self.current_volecity, self.dbw_enabled, self.del_time, vel_err_x)
+            if self.dbw_enabled:
+                self.publish(throttle, brake, steering)
+            else:
+                pass
             rate.sleep()
 
     def publish(self, throttle, brake, steer):
@@ -129,10 +131,6 @@ class DBWNode(object):
 
     def dbw_enabled_cb(self, dbw_enabled):
         self.dbw_enabled = dbw_enabled
-
-    def CTE(self, way_points, current_pos):
-
-        return cte
 
 
 
