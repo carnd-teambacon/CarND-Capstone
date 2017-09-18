@@ -64,7 +64,7 @@ class DBWNode(object):
         self.previous_timestamp = rospy.get_rostime().secs
         self.current_timestamp = 0.0
         self.del_time = 0.0
-        self.dbw_enabled = False
+        self.dbw_enabled = True
         self.latest_twist_cmd = None
 
         # TODO: Create `TwistController` object
@@ -102,21 +102,26 @@ class DBWNode(object):
             # for throttle controller: we need the current speed error and the del time
             # for the steering error: we need the CTE to guide us back to the center, but it seems like the
             #   yaw controller will return a steering angle, do we still need a CTE?
+            rospy.loginfo("""DBW enabled: {}""".format(self.dbw_enabled))
 
-            self.current_timestamp = rospy.get_rostime().secs
-            self.del_time = self.current_timestamp - self.previous_timestamp
-            self.previous_timestamp = self.current_timestamp
-            vel_err_x = self.final_waypoints[0].twist.twist.linear.x - self.current_velocity
+            if self.dbw_enabled and self.final_waypoints is not None:
 
-            throttle, brake, steering = self.controller.control(
-                lin_vel=self.final_waypoints[0].twist.twist.linear,
-                ang_vel=self.final_waypoints[0].twist.twist.angular,
-                current_lin_vel=self.current_velocity,
-                dbw_status=self.dbw_enabled,
-                del_time=self.del_time,
-                vel_err=vel_err_x)
+                self.current_timestamp = rospy.get_rostime().secs
+                self.del_time = self.current_timestamp - self.previous_timestamp
+                self.previous_timestamp = self.current_timestamp
+                vel_err_x = self.final_waypoints[0].twist.twist.linear.x - self.current_velocity
 
-            if self.dbw_enabled:
+                # @TODO final waypoints to calculate lin and ang velocity??
+                # try with twist_cmd -> You will subscribe to `/twist_cmd` message which provides the proposed linear and
+                # angular velocities.
+                throttle, brake, steering = self.controller.control(
+                    lin_vel=self.final_waypoints[0].twist.twist.linear,
+                    ang_vel=self.final_waypoints[0].twist.twist.angular,
+                    current_lin_vel=self.current_velocity,
+                    dbw_status=self.dbw_enabled,
+                    del_time=self.del_time,
+                    vel_err=vel_err_x)
+
                 self.publish(throttle, brake, steering)
             else:
                 pass
