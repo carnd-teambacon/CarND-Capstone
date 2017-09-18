@@ -55,25 +55,36 @@ class DBWNode(object):
                                          BrakeCmd, queue_size=1)
 
 
-        # other variables needed 
-        # current_pose, current_volecity, timestamp for PID
+        # other variables needed
+        # current_pose, current_velocity, timestamp for PID
 
         self.final_waypoints = None
         self.current_pose = None # is there a topic for current pose? need to subscribe to it
-        self.current_volecity = 0.0 # is there a topic for current velocity? need to subscribe to it
+        self.current_velocity = 0.0 # is there a topic for current velocity? need to subscribe to it
         self.previous_timestamp = rospy.get_rostime().secs
         self.current_timestamp = 0.0
         self.del_time = 0.0
-
         self.dbw_enabled = False
+        self.latest_twist_cmd = None
+
         # TODO: Create `TwistController` object
         self.controller = TwistController()
 
         # TODO: Subscribe to all the topics you need to
         rospy.Subscriber('/final_waypoints', Lane, self.final_waypoints_cb)
+        rospy.Subscriber('/twist_cmd', TwistStamped, self.twist_cmd_cb)
         rospy.Subscriber('/vehicle/dbw_enabled', Bool, self.dbw_enabled_cb)
 
         self.loop()
+
+    def final_waypoints_cb(self, final_waypoints):
+        self.final_waypoints = final_waypoints
+
+    def dbw_enabled_cb(self, dbw_enabled):
+        self.dbw_enabled = dbw_enabled
+
+    def twist_cmd_cb(self, twist_cmd):
+        self.latest_twist_cmd = twist_cmd
 
     def loop(self):
         rate = rospy.Rate(50) # 50Hz
@@ -94,14 +105,17 @@ class DBWNode(object):
 
             self.current_timestamp = rospy.get_rostime().secs
             self.del_time = self.current_timestamp - self.previous_timestamp
-            self.previous_timestamp = self.current_timestamp 
-            vel_err_x = self.final_waypoints[0].twist.twist.linear.x - self.current_volecity
+            self.previous_timestamp = self.current_timestamp
+            vel_err_x = self.final_waypoints[0].twist.twist.linear.x - self.current_velocity
 
+            throttle, brake, steering = self.controller.control(
+                lin_vel=self.final_waypoints[0].twist.twist.linear,
+                ang_vel=self.final_waypoints[0].twist.twist.angular,
+                current_lin_vel=self.current_velocity,
+                dbw_status=self.dbw_enabled,
+                del_time=self.del_time,
+                vel_err=vel_err_x)
 
-
-
-            throttle, brake, steering = self.controller.control(final_waypoints[0].twist.twist.linear, final_waypoints[0].twist.twist.angular,
-                                                                self.current_volecity, self.dbw_enabled, self.del_time, vel_err_x)
             if self.dbw_enabled:
                 self.publish(throttle, brake, steering)
             else:
@@ -125,15 +139,6 @@ class DBWNode(object):
         bcmd.pedal_cmd_type = BrakeCmd.CMD_TORQUE
         bcmd.pedal_cmd = brake
         self.brake_pub.publish(bcmd)
-
-    def final_waypoints_cb(self, final_waypoints):
-        self.final_waypoints = final_waypoints
-
-    def dbw_enabled_cb(self, dbw_enabled):
-        self.dbw_enabled = dbw_enabled
-
-
-
 
 
 if __name__ == '__main__':
