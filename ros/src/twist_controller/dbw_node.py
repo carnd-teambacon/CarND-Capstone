@@ -71,14 +71,10 @@ class DBWNode(object):
         self.controller = TwistController()
 
         # TODO: Subscribe to all the topics you need to
-        rospy.Subscriber('/final_waypoints', Lane, self.final_waypoints_cb)
         rospy.Subscriber('/twist_cmd', TwistStamped, self.twist_cmd_cb)
         rospy.Subscriber('/vehicle/dbw_enabled', Bool, self.dbw_enabled_cb)
 
         self.loop()
-
-    def final_waypoints_cb(self, final_waypoints):
-        self.final_waypoints = final_waypoints
 
     def dbw_enabled_cb(self, dbw_enabled):
         self.dbw_enabled = dbw_enabled
@@ -109,14 +105,14 @@ class DBWNode(object):
                 self.current_timestamp = rospy.get_rostime().secs
                 self.del_time = self.current_timestamp - self.previous_timestamp
                 self.previous_timestamp = self.current_timestamp
-                vel_err_x = self.final_waypoints[0].twist.twist.linear.x - self.current_velocity
+                vel_err_x = self.lastest_twist_cmd.twist.linear.x - self.current_velocity
 
                 # @TODO final waypoints to calculate lin and ang velocity??
                 # try with twist_cmd -> You will subscribe to `/twist_cmd` message which provides the proposed linear and
                 # angular velocities.
                 throttle, brake, steering = self.controller.control(
-                    lin_vel=self.final_waypoints[0].twist.twist.linear,
-                    ang_vel=self.final_waypoints[0].twist.twist.angular,
+                    lin_vel=self.lastest_twist_cmd.twist.linear.x,
+                    ang_vel=self.lastest_twist_cmd.twist.angular,
                     current_lin_vel=self.current_velocity,
                     dbw_status=self.dbw_enabled,
                     del_time=self.del_time,
