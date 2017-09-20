@@ -60,7 +60,6 @@ class DBWNode(object):
 
         self.current_pose = None # is there a topic for current pose? need to subscribe to it
         self.current_velocity = None # is there a topic for current velocity? need to subscribe to it
-        self.previous_timestamp = rospy.get_time()
         self.current_timestamp = 0.0
         self.del_time = 0.0
         self.dbw_enabled = False
@@ -74,6 +73,7 @@ class DBWNode(object):
         rospy.Subscriber('/current_velocity', TwistStamped, self.current_velocity_cb)
         rospy.Subscriber('/vehicle/dbw_enabled', Bool, self.dbw_enabled_cb)
 
+        self.previous_timestamp = rospy.get_time()
         self.loop()
 
     def dbw_enabled_cb(self, dbw_enabled):
@@ -86,8 +86,11 @@ class DBWNode(object):
         self.latest_twist_cmd = twist_cmd
 
     def loop(self):
-        rate = rospy.Rate(10) # 50Hz
+        rate = rospy.Rate(50) # 50Hz
         while not rospy.is_shutdown():
+            self.current_timestamp = rospy.get_time()
+            self.del_time = self.current_timestamp - self.previous_timestamp
+            self.previous_timestamp = self.current_timestamp
             # TODO: Get predicted throttle, brake, and steering using `twist_controller`
             # You should only publish the control commands if dbw is enabled
             # throttle, brake, steering = self.controller.control(<proposed linear velocity>,
@@ -104,15 +107,8 @@ class DBWNode(object):
             rospy.loginfo("""DBW enabled: {}""".format(self.dbw_enabled))
 
             if self.dbw_enabled and self.current_velocity is not None and self.latest_twist_cmd is not None:
-
-                self.current_timestamp = rospy.get_time()
-                self.del_time = self.current_timestamp - self.previous_timestamp
-                self.previous_timestamp = self.current_timestamp
-                vel_err_x = self.current_velocity.twist.linear.x - self.latest_twist_cmd.twist.linear.x
-
-                # @TODO final waypoints to calculate lin and ang velocity??
-                # try with twist_cmd -> You will subscribe to `/twist_cmd` message which provides the proposed linear and
-                # angular velocities.
+                
+                vel_err_x = self.latest_twist_cmd.twist.linear.x - self.current_velocity.twist.linear.x
                 throttle, brake, steering = self.controller.control(
                     lin_vel=abs(self.latest_twist_cmd.twist.linear.x),
                     ang_vel=self.latest_twist_cmd.twist.angular.z,
