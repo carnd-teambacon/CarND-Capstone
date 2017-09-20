@@ -32,20 +32,38 @@ that we have created in the `__init__` function.
 
 '''
 
+class CarParams(object):
+    def __init__(self):
+        self.vehicle_mass = None
+        self.fuel_capacity = None
+        self.brake_deadband = None
+        self.decel_limit = None
+        self.accel_limit = None
+        self.wheel_radius = None
+        self.wheel_base = None
+        self.steer_ratio = None
+        self.max_lat_accel = None
+        self.max_steer_angle = None
+        self.min_speed = None
+
+
 class DBWNode(object):
     def __init__(self):
         rospy.init_node('dbw_node')
 
-        vehicle_mass = rospy.get_param('~vehicle_mass', 1736.35)
-        fuel_capacity = rospy.get_param('~fuel_capacity', 13.5)
-        brake_deadband = rospy.get_param('~brake_deadband', .1)
-        decel_limit = rospy.get_param('~decel_limit', -5)
-        accel_limit = rospy.get_param('~accel_limit', 1.)
-        wheel_radius = rospy.get_param('~wheel_radius', 0.2413)
-        wheel_base = rospy.get_param('~wheel_base', 2.8498)
-        steer_ratio = rospy.get_param('~steer_ratio', 14.8)
-        max_lat_accel = rospy.get_param('~max_lat_accel', 3.)
-        max_steer_angle = rospy.get_param('~max_steer_angle', 8.)
+        cp = CarParams()
+
+        cp.vehicle_mass = rospy.get_param('~vehicle_mass', 1736.35)
+        cp.fuel_capacity = rospy.get_param('~fuel_capacity', 13.5)
+        cp.brake_deadband = rospy.get_param('~brake_deadband', .1)
+        cp.decel_limit = rospy.get_param('~decel_limit', -5)
+        cp.accel_limit = rospy.get_param('~accel_limit', 1.)
+        cp.wheel_radius = rospy.get_param('~wheel_radius', 0.2413)
+        cp.wheel_base = rospy.get_param('~wheel_base', 2.8498)
+        cp.steer_ratio = rospy.get_param('~steer_ratio', 14.8)
+        cp.max_lat_accel = rospy.get_param('~max_lat_accel', 3.)
+        cp.max_steer_angle = rospy.get_param('~max_steer_angle', 8.)
+        cp.min_speed = 0.0 # TODO param
 
         self.steer_pub = rospy.Publisher('/vehicle/steering_cmd',
                                          SteeringCmd, queue_size=1)
@@ -54,26 +72,25 @@ class DBWNode(object):
         self.brake_pub = rospy.Publisher('/vehicle/brake_cmd',
                                          BrakeCmd, queue_size=1)
 
-
-        # other variables needed
-        # current_pose, current_velocity, timestamp for PID
-
-        self.current_pose = None # is there a topic for current pose? need to subscribe to it
-        self.current_velocity = None # is there a topic for current velocity? need to subscribe to it
-        self.current_timestamp = 0.0
-        self.del_time = 0.0
+        # self.current_pose = None # needed?
         self.dbw_enabled = False
+        self.reset_flag = True
+        self.current_velocity = None
         self.latest_twist_cmd = None
 
-        # TODO: Create `TwistController` object
-        self.controller = TwistController()
+        # TIME
+        self.current_timestamp = 0.0
+        self.del_time = 0.0
+        self.previous_timestamp = rospy.get_time()
 
-        # TODO: Subscribe to all the topics you need to
+        #  Create `TwistController` object
+        self.controller = TwistController(cp=cp)
+
+        # Subscribe to all the topics you need to
         rospy.Subscriber('/twist_cmd', TwistStamped, self.twist_cmd_cb)
         rospy.Subscriber('/current_velocity', TwistStamped, self.current_velocity_cb)
         rospy.Subscriber('/vehicle/dbw_enabled', Bool, self.dbw_enabled_cb)
 
-        self.previous_timestamp = rospy.get_time()
         self.loop()
 
     def dbw_enabled_cb(self, dbw_enabled):
@@ -104,16 +121,19 @@ class DBWNode(object):
             # for throttle controller: we need the current speed error and the del time
             # for the steering error: we need the CTE to guide us back to the center, but it seems like the
             #   yaw controller will return a steering angle, do we still need a CTE?
-            rospy.loginfo("""DBW enabled: {}""".format(self.dbw_enabled))
+            rospy.loginfo("""dbw_enabled : {}""".format(self.dbw_enabled))
 
             if self.dbw_enabled and self.current_velocity is not None and self.latest_twist_cmd is not None:
-                
+
+                if self.reset_flag:
+                    self.controller.reset()
+                    self.reset_flag = False
+
                 vel_err_x = self.latest_twist_cmd.twist.linear.x - self.current_velocity.twist.linear.x
                 throttle, brake, steering = self.controller.control(
                     lin_vel=abs(self.latest_twist_cmd.twist.linear.x),
                     ang_vel=self.latest_twist_cmd.twist.angular.z,
                     current_lin_vel=self.current_velocity.twist.linear.x,
-                    dbw_status=self.dbw_enabled,
                     del_time=self.del_time,
                     vel_err=vel_err_x)
 
@@ -121,7 +141,7 @@ class DBWNode(object):
 
                 self.publish(throttle, brake, steering)
             else:
-                pass
+                self.reset_flag = True
             rate.sleep()
 
     def publish(self, throttle, brake, steer):
