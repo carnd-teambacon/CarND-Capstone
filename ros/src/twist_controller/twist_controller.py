@@ -36,12 +36,14 @@ class TwistController(object):
 
         next_steer = self.yaw_controller.get_steering(lin_vel, ang_vel, current_lin_vel)
 
-        throttle = self.pid.step(vel_err, del_time)
+        # @TODO
+        # throttle = self.pid.step(vel_err, del_time)
+        throttle = 1.0
 
-        if lin_vel.twist.twist.linear.x > 0:
-            brake = 0
+        if lin_vel > 0:
+            brake = 0.0
         else:
-            brake = 1
+            brake = 1.0
 
         # Return throttle, brake, steer
         return throttle, brake, next_steer

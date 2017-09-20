@@ -58,13 +58,12 @@ class DBWNode(object):
         # other variables needed
         # current_pose, current_velocity, timestamp for PID
 
-        self.final_waypoints = None
         self.current_pose = None # is there a topic for current pose? need to subscribe to it
-        self.current_velocity = 0.0 # is there a topic for current velocity? need to subscribe to it
-        self.previous_timestamp = rospy.get_rostime().secs
+        self.current_velocity = None # is there a topic for current velocity? need to subscribe to it
+        self.previous_timestamp = rospy.get_time()
         self.current_timestamp = 0.0
         self.del_time = 0.0
-        self.dbw_enabled = True
+        self.dbw_enabled = False
         self.latest_twist_cmd = None
 
         # TODO: Create `TwistController` object
@@ -72,12 +71,16 @@ class DBWNode(object):
 
         # TODO: Subscribe to all the topics you need to
         rospy.Subscriber('/twist_cmd', TwistStamped, self.twist_cmd_cb)
+        rospy.Subscriber('/current_velocity', TwistStamped, self.current_velocity_cb)
         rospy.Subscriber('/vehicle/dbw_enabled', Bool, self.dbw_enabled_cb)
 
         self.loop()
 
     def dbw_enabled_cb(self, dbw_enabled):
         self.dbw_enabled = dbw_enabled
+
+    def current_velocity_cb(self, current_velocity):
+        self.current_velocity = current_velocity
 
     def twist_cmd_cb(self, twist_cmd):
         self.latest_twist_cmd = twist_cmd
@@ -100,23 +103,25 @@ class DBWNode(object):
             #   yaw controller will return a steering angle, do we still need a CTE?
             rospy.loginfo("""DBW enabled: {}""".format(self.dbw_enabled))
 
-            if self.dbw_enabled and self.final_waypoints is not None:
+            if self.dbw_enabled and self.current_velocity is not None and self.latest_twist_cmd is not None:
 
-                self.current_timestamp = rospy.get_rostime().secs
+                self.current_timestamp = rospy.get_time()
                 self.del_time = self.current_timestamp - self.previous_timestamp
                 self.previous_timestamp = self.current_timestamp
-                vel_err_x = self.lastest_twist_cmd.twist.linear.x - self.current_velocity
+                vel_err_x = self.current_velocity.twist.linear.x - self.latest_twist_cmd.twist.linear.x
 
                 # @TODO final waypoints to calculate lin and ang velocity??
                 # try with twist_cmd -> You will subscribe to `/twist_cmd` message which provides the proposed linear and
                 # angular velocities.
                 throttle, brake, steering = self.controller.control(
-                    lin_vel=self.lastest_twist_cmd.twist.linear.x,
-                    ang_vel=self.lastest_twist_cmd.twist.angular,
-                    current_lin_vel=self.current_velocity,
+                    lin_vel=abs(self.latest_twist_cmd.twist.linear.x),
+                    ang_vel=self.latest_twist_cmd.twist.angular.z,
+                    current_lin_vel=self.current_velocity.twist.linear.x,
                     dbw_status=self.dbw_enabled,
                     del_time=self.del_time,
                     vel_err=vel_err_x)
+
+                rospy.loginfo("""publish: t={} b={} s={}""".format(throttle, brake, steering))
 
                 self.publish(throttle, brake, steering)
             else:
