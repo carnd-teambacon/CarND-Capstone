@@ -94,7 +94,10 @@ class DBWNode(object):
         self.loop()
 
     def dbw_enabled_cb(self, dbw_enabled):
-        self.dbw_enabled = dbw_enabled
+        try:
+            self.dbw_enabled = dbw_enabled.data
+        except Exception:
+            self.dbw_enabled = dbw_enabled
 
     def current_velocity_cb(self, current_velocity):
         self.current_velocity = current_velocity
@@ -103,7 +106,7 @@ class DBWNode(object):
         self.latest_twist_cmd = twist_cmd
 
     def loop(self):
-        rate = rospy.Rate(50) # 50Hz
+        rate = rospy.Rate(10) # 50Hz
         while not rospy.is_shutdown():
             self.current_timestamp = rospy.get_time()
             self.del_time = self.current_timestamp - self.previous_timestamp
