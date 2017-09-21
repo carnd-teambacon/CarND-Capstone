@@ -7,3 +7,7 @@ venv
 
 profile.tmp
 .vscode
+
+.DS_Store
+
+/imgs/traffic_lights
