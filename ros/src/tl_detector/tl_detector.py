@@ -140,13 +140,10 @@ class TLDetector(object):
 
         fx = self.config['camera_info']['focal_length_x']
         fy = self.config['camera_info']['focal_length_y']
-        # just override the simulator fx and fy
-        if fx < 10:
-            fx = 2244
-        if fy < 10: 
-            fy = 2552 #303.8
         image_width = self.config['camera_info']['image_width']
         image_height = self.config['camera_info']['image_height']
+        cx = image_width/2
+        cy = image_height/2
 
         # get transform between pose of camera and world frame
         transT = None
@@ -172,28 +169,30 @@ class TLDetector(object):
                         ptz)
         point_to_cam = [sum(x) for x in zip(point_to_cam, transT)]
 
-        # DELETE THIS MAYBE
-        point_to_cam[2] -= 1.0
+        ##########################################################################################
+        # DELETE THIS MAYBE - MANUAL TWEAKS TO GET THE PROJECTION TO COME OUT CORRECTLY IN SIMULATOR
+        # just override the simulator parameters. probably need a more reliable way to determine if 
+        # using simulator and not real car
+        if fx < 10:
+            fx = 2344
+            fy = 2552 #303.8
+            point_to_cam[2] -= 1.0
+            cy = cy * 2 
+        ##########################################################################################
 
         #rospy.loginfo_throttle(3, "traffic light location: " + str(ptx) + "," + str(pty) + "," + str(ptz))
         #rospy.loginfo_throttle(3, "cam to world trans: " + str(transT))
         #rospy.loginfo_throttle(3, "cam to world rot: " + str(rotT))
         #rospy.loginfo_throttle(3, "roll, pitch, yaw: " + str(rpy))
-        rospy.loginfo_throttle(3, "traffic light to cam: " + str(point_to_cam))
+        rospy.loginfo_throttle(3, "camera to traffic light: " + str(point_to_cam))
 
         x = -point_to_cam[1] * fx / point_to_cam[0]; 
         y = -point_to_cam[2] * fy / point_to_cam[0]; 
 
-        x = int(x + image_width/2)
-        #y = int(y + image_height/2) 
-
-        # DELETE THIS MAYBE
-        y = int(y + image_height) 
+        x = int(x + cx)
+        y = int(y + cy) 
 
         rospy.loginfo_throttle(3, "traffic light pixel (x,y): " + str(x) + "," + str(y))
-
-        # x = 0
-        # y = 0
 
         return (x, y)
 
