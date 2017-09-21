@@ -43,14 +43,14 @@ class WaypointUpdater(object):
         rospy.spin()
 
     def pose_cb(self, msg):
-        self.cur_pose = msg.pose        
-        self.publish()
+        if self.waypoints is not None:
+            self.cur_pose = msg.pose        
+            self.publish()
 
     def waypoints_cb(self, lane):
         # do this once and not all the time
         if self.waypoints is None:
-            self.waypoints = lane.waypoints
-            self.publish()
+            self.waypoints = lane.waypoints        
 
     def traffic_cb(self, msg):
         # TODO: Callback for /traffic_waypoint message. We will implement it later
@@ -109,11 +109,6 @@ class WaypointUpdater(object):
             next_waypoint_index = self.next_waypoint(self.cur_pose, self.waypoints)
             lookahead_waypoints = self.waypoints[next_waypoint_index:next_waypoint_index+LOOKAHEAD_WPS]
             
-            # set the velocity for lookahead waypoints
-            for i in range(len(lookahead_waypoints) - 1):                
-                # convert 10 miles per hour to meters per sec
-                self.set_waypoint_velocity(lookahead_waypoints, i, (10 * 1609.34) / (60 * 60))
-
             if DEBUG_MODE:
                 posx = self.waypoints[next_waypoint_index].pose.pose.position.x
                 posy = self.waypoints[next_waypoint_index].pose.pose.position.y

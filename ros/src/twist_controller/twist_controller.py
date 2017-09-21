@@ -3,7 +3,6 @@ from pid import PID
 from lowpass import LowPassFilter
 from yaw_controller import YawController
 
-
 GAS_DENSITY = 2.858
 ONE_MPH = 0.44704
 
@@ -33,7 +32,7 @@ class TwistController(object):
 
         acceleration = self.pid.step(vel_err, del_time)
         next_steer = self.yaw_controller.get_steering(lin_vel, ang_vel, current_lin_vel)
-
+        
         if acceleration > 0.0:
             throttle = acceleration
             brake = 0.0

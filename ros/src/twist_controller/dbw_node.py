@@ -63,7 +63,7 @@ class DBWNode(object):
         cp.steer_ratio = rospy.get_param('~steer_ratio', 14.8)
         cp.max_lat_accel = rospy.get_param('~max_lat_accel', 3.)
         cp.max_steer_angle = rospy.get_param('~max_steer_angle', 8.)
-        cp.min_speed = 0.0 # TODO param
+        cp.min_speed = 1.0 # TODO param
 
         self.steer_pub = rospy.Publisher('/vehicle/steering_cmd',
                                          SteeringCmd, queue_size=1)
@@ -106,7 +106,7 @@ class DBWNode(object):
         self.latest_twist_cmd = twist_cmd
 
     def loop(self):
-        rate = rospy.Rate(10) # 50Hz
+        rate = rospy.Rate(50) # 50Hz
         while not rospy.is_shutdown():
             self.current_timestamp = rospy.get_time()
             self.del_time = self.current_timestamp - self.previous_timestamp
