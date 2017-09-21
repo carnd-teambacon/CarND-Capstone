@@ -14,7 +14,7 @@ import yaml
 import sys
 import math
 import numpy
-from pyquaternion import Quaternion
+#from pyquaternion import Quaternion
 
 STATE_COUNT_THRESHOLD = 3
 
@@ -25,6 +25,7 @@ class TLDetector(object):
         self.pose = None
         self.waypoints = None
         self.camera_image = None
+        self.has_image = False
         self.lights = []
 
         sub1 = rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
@@ -77,7 +78,9 @@ class TLDetector(object):
 
         """
         
-        print('image_cb')
+        #print('image_cb')
+        if not self.has_image:
+            rospy.loginfo("Received image from simulator")
         self.has_image = True
         self.camera_image = msg
         light_wp, state = self.process_traffic_lights()
@@ -137,11 +140,17 @@ class TLDetector(object):
 
         fx = self.config['camera_info']['focal_length_x']
         fy = self.config['camera_info']['focal_length_y']
+        # just override the simulator fx and fy
+        if fx < 10:
+            fx = 2244
+        if fy < 10: 
+            fy = 2552 #303.8
         image_width = self.config['camera_info']['image_width']
         image_height = self.config['camera_info']['image_height']
 
         # get transform between pose of camera and world frame
-        trans = None
+        transT = None
+        rotT = None
         try:
             now = rospy.Time.now()
             self.listener.waitForTransform("/base_link",
@@ -151,24 +160,40 @@ class TLDetector(object):
 
         except (tf.Exception, tf.LookupException, tf.ConnectivityException):
             rospy.logerr("Failed to find camera to map transform")
+            return None, None
 
+        rpy = tf.transformations.euler_from_quaternion(rotT)
+        yaw = rpy[2]
 
-        rot = [rotT[0], rotT[1], rotT[2], rotT[3]]
-        quat = Quaternion(numpy.array(rot))
-        point_in_world_vec = numpy.array([point_in_world.x, point_in_world.y, point_in_world.z])
-        trans_vec = numpy.array(([transT[0], transT[1], transT[2]]))
-        point_in_camera = quat.rotate(point_in_world_vec) + trans_vec
+        (ptx, pty, ptz) = (point_in_world.x, point_in_world.y, point_in_world.z)
 
-        print(point_in_camera)
+        point_to_cam = (ptx * math.cos(yaw) - pty * math.sin(yaw),
+                        ptx * math.sin(yaw) + pty * math.cos(yaw), 
+                        ptz)
+        point_to_cam = [sum(x) for x in zip(point_to_cam, transT)]
 
-        x = point_in_camera[0] * fx / (-point_in_camera[2]); 
-        y = point_in_camera[1] * fy / (-point_in_camera[2]); 
+        # DELETE THIS MAYBE
+        point_to_cam[2] -= 1.0
 
-        x = int(x+ image_width/2)
-        y = int(y+ image_height/2) 
+        #rospy.loginfo_throttle(3, "traffic light location: " + str(ptx) + "," + str(pty) + "," + str(ptz))
+        #rospy.loginfo_throttle(3, "cam to world trans: " + str(transT))
+        #rospy.loginfo_throttle(3, "cam to world rot: " + str(rotT))
+        #rospy.loginfo_throttle(3, "roll, pitch, yaw: " + str(rpy))
+        rospy.loginfo_throttle(3, "traffic light to cam: " + str(point_to_cam))
 
-        #x = 0
-        #y = 0
+        x = -point_to_cam[1] * fx / point_to_cam[0]; 
+        y = -point_to_cam[2] * fy / point_to_cam[0]; 
+
+        x = int(x + image_width/2)
+        #y = int(y + image_height/2) 
+
+        # DELETE THIS MAYBE
+        y = int(y + image_height) 
+
+        rospy.loginfo_throttle(3, "traffic light pixel (x,y): " + str(x) + "," + str(y))
+
+        # x = 0
+        # y = 0
 
         return (x, y)
 
@@ -183,7 +208,7 @@ class TLDetector(object):
 
         """
         ###TODO(denise) Replace with CV later
-        print('get light state')
+        #print('get light state')
         if(not self.has_image):
             self.prev_light_loc = None
             return False
@@ -246,7 +271,6 @@ class TLDetector(object):
         if light:
             state = self.get_light_state(light)
             return light_wp, state
-        self.waypoints = None
         return -1, TrafficLight.UNKNOWN
 
 if __name__ == '__main__':
