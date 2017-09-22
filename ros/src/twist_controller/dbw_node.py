@@ -107,7 +107,6 @@ class DBWNode(object):
             rospy.loginfo("""DBW enabled: {}""".format(self.dbw_enabled))
 
             if self.dbw_enabled and self.current_velocity is not None and self.latest_twist_cmd is not None:
-                
                 vel_err_x = self.latest_twist_cmd.twist.linear.x - self.current_velocity.twist.linear.x
                 throttle, brake, steering = self.controller.control(
                     lin_vel=abs(self.latest_twist_cmd.twist.linear.x),
