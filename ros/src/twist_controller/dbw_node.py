@@ -3,7 +3,7 @@
 import rospy
 from std_msgs.msg import Bool
 from dbw_mkz_msgs.msg import ThrottleCmd, SteeringCmd, BrakeCmd, SteeringReport
-from geometry_msgs.msg import TwistStamped
+from geometry_msgs.msg import TwistStamped, PoseStamped
 from styx_msgs.msg import Lane
 import math
 
@@ -45,7 +45,7 @@ class CarParams(object):
         self.max_lat_accel = None
         self.max_steer_angle = None
         self.min_speed = None
-
+        self.current_pose = None
 
 class DBWNode(object):
     def __init__(self):
@@ -72,7 +72,7 @@ class DBWNode(object):
         self.brake_pub = rospy.Publisher('/vehicle/brake_cmd',
                                          BrakeCmd, queue_size=1)
 
-        # self.current_pose = None # needed?
+        self.current_pose = None # needed?
         self.dbw_enabled = False
         self.reset_flag = True
         self.current_velocity = None
@@ -85,6 +85,7 @@ class DBWNode(object):
         self.controller = TwistController(cp=cp)
 
         # Subscribe to all the topics you need to
+        rospy.Subscriber('current_pose', PoseStamped, self.current_pose_cb)
         rospy.Subscriber('/twist_cmd', TwistStamped, self.twist_cmd_cb)
         rospy.Subscriber('/current_velocity', TwistStamped, self.current_velocity_cb)
         rospy.Subscriber('/vehicle/dbw_enabled', Bool, self.dbw_enabled_cb)
@@ -102,6 +103,9 @@ class DBWNode(object):
 
     def twist_cmd_cb(self, twist_cmd):
         self.latest_twist_cmd = twist_cmd
+
+    def current_pose_cb(self, current_pose):
+		self.current_pose = current_pose.pose.orientation.z
 
     def loop(self):
         rate = rospy.Rate(50) # 50Hz
@@ -122,7 +126,7 @@ class DBWNode(object):
                 throttle, brake, steering = self.controller.control(
                     twist_cmd=self.latest_twist_cmd,
                     current_velocity=self.current_velocity,
-                    del_time=del_time)
+                    del_time=del_time, current_pose = self.current_pose)
 
                 rospy.loginfo("""publish: t={} b={} s={}""".format(throttle, brake, steering))
 

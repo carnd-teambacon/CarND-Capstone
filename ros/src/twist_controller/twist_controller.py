@@ -17,31 +17,34 @@ class TwistController(object):
             max_lat_accel=cp.max_lat_accel,
             max_steer_angle=cp.max_steer_angle)
 
-        self.pid = PID(kp=5, ki=0.5, kd=0.5, mn=cp.decel_limit, mx=cp.accel_limit)
+        self.pid = PID(kp=5, ki=0.5, kd=0.8, mn=cp.decel_limit, mx=cp.accel_limit)
+	self.pid_s = PID(kp = 1, ki = 0.1, kd = 0.5)
         self.s_lpf = LowPassFilter(tau = 3, ts = 1)
         self.t_lpf = LowPassFilter(tau = 3, ts = 1)
 
     def reset(self):
         self.pid.reset()
 
-    def control(self, twist_cmd, current_velocity, del_time):
-        
+    def control(self, twist_cmd, current_velocity, del_time, current_pose):
         lin_vel = abs(twist_cmd.twist.linear.x)
         ang_vel = twist_cmd.twist.angular.z
         vel_err = lin_vel - current_velocity.twist.linear.x
-
         next_steer = self.yaw_controller.get_steering(lin_vel, ang_vel, current_velocity.twist.linear.x)
         next_steer = self.s_lpf.filt(next_steer)
+	steer_err = next_steer - current_pose
+	next_steer = self.pid_s.step(steer_err, del_time)
 
         acceleration = self.pid.step(vel_err, del_time)
         acceleration = self.t_lpf.filt(acceleration)
-
+	rospy.logwarn('acc:')	
+	rospy.logwarn(acceleration)
         if acceleration > 0.0:
             throttle = acceleration
             brake = 0.0
         else:
             throttle = 0.0
-            brake = -acceleration
-
+            brake = -100.0
+	rospy.logwarn('output:')	
+	rospy.logwarn([throttle, brake, next_steer])
         # Return throttle, brake, steer
         return throttle, brake, next_steer
