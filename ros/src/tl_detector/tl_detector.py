@@ -14,6 +14,13 @@ import yaml
 import sys
 import math
 import numpy
+import os
+
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
+
+from keras.models import load_model
+from keras.preprocessing.image import load_img, img_to_array
 #from pyquaternion import Quaternion
 
 STATE_COUNT_THRESHOLD = 3
@@ -55,7 +62,7 @@ class TLDetector(object):
         self.last_wp = -1
         self.state_count = 0
 
-        #model = load_model('light_classifier_model.h5')
+        
         #model.summary()
 
         rospy.spin()
@@ -78,7 +85,6 @@ class TLDetector(object):
 
         """
         
-        #print('image_cb')
         if not self.has_image:
             rospy.loginfo("Received image from simulator")
         self.has_image = True
@@ -126,7 +132,7 @@ class TLDetector(object):
         return index
 
 
-    def project_to_image_plane(self, point_in_world):
+    def project_to_image_plane(self, ptx, pty, ptz):
         """Project point from 3D world coordinates to 2D camera image location
 
         Args:
@@ -162,7 +168,7 @@ class TLDetector(object):
         rpy = tf.transformations.euler_from_quaternion(rotT)
         yaw = rpy[2]
 
-        (ptx, pty, ptz) = (point_in_world.x, point_in_world.y, point_in_world.z)
+        #(ptx, pty, ptz) = (point_in_world.x, point_in_world.y, point_in_world.z)
 
         point_to_cam = (ptx * math.cos(yaw) - pty * math.sin(yaw),
                         ptx * math.sin(yaw) + pty * math.cos(yaw), 
@@ -180,7 +186,7 @@ class TLDetector(object):
             cy = cy * 2 
         ##########################################################################################
 
-        #rospy.loginfo_throttle(3, "traffic light location: " + str(ptx) + "," + str(pty) + "," + str(ptz))
+        rospy.loginfo_throttle(3, "traffic light location: " + str(ptx) + "," + str(pty) + "," + str(ptz))
         #rospy.loginfo_throttle(3, "cam to world trans: " + str(transT))
         #rospy.loginfo_throttle(3, "cam to world rot: " + str(rotT))
         #rospy.loginfo_throttle(3, "roll, pitch, yaw: " + str(rpy))
@@ -196,6 +202,7 @@ class TLDetector(object):
 
         return (x, y)
 
+
     def get_light_state(self, light):
         """Determines the current color of the traffic light
 
@@ -207,7 +214,6 @@ class TLDetector(object):
 
         """
         ###TODO(denise) Replace with CV later
-        #print('get light state')
         if(not self.has_image):
             self.prev_light_loc = None
             return False
@@ -216,31 +222,61 @@ class TLDetector(object):
         cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
 
 
+        #TODO (Denise) these offsets are only for test case, need to modify using normal vector
+        ptx = light.pose.pose.position.x - 10
+        pty = light.pose.pose.position.y 
+        ptz = light.pose.pose.position.z + 1
 
-        x, y = self.project_to_image_plane(light.pose.pose.position)
+        x_top, y_top = self.project_to_image_plane(ptx, pty, ptz)
 
-        #pil_image = Image.fromstring("L", cv.GetSize(cv_image), cv_image.tostring())
+        
+
+        ptx = light.pose.pose.position.x + 10
+        pty = light.pose.pose.position.y
+        ptz = light.pose.pose.position.z - 1
+        
+        x_bottom, y_bottom = self.project_to_image_plane(ptx, pty, ptz)
+
+        
+
+
         #crop image
+        #TODO (denise) need make sure this is the correct area to crop
+        cpy = cv_image.copy()
 
-        #img_array = img_to_array(pil_image.resize((64, 64), Image.ANTIALIAS))
-        #img_array = img_array/255
-        #img_array =  img_array[None, :]
-        #model.predict(img_array)
+        x_top = self.cap_value(x_top, 0, 600)
+        x_bottom = self.cap_value(x_bottom, 0, 600)
+        y_top = self.cap_value(y_top, 0, 800)
+        y_bottom = self.cap_value(y_bottom, 0, 800)
+
+        rospy.loginfo_throttle(2, "top left: " + str(x_top) + "," + str(y_top))
+        rospy.loginfo_throttle(2, "bottom left: " + str(x_bottom) + "," + str(y_bottom))
 
 
-
+        #if image is too small, ignore
+        if x_bottom - x_top< 50 or y_bottom-y_top < 50:
+            return TrafficLight.UNKNOWN
 
 
         #TODO (denise) what should this size be?
         #stoplights are about 1067x356 mm
-        #cv2.rectangle(cv_image,(x,y),(x-10,y+10),(0,255,0),3)
-        #image for debugging
-        #cv2.imwrite('test.png',cv_image)
+
+        crop_img = cpy[int(y_top):int(y_bottom), int(x_top):int(x_bottom)]
+
 
         #TODO use light location to zoom in on traffic light in image
 
         #Get classification
-        return self.light_classifier.get_classification(cv_image)
+        a = self.light_classifier.get_classification(crop_img)
+        rospy.loginfo_throttle(2, "Light: " + str(a))
+
+        return 0
+
+        #return self.light_classifier.get_classification(cv_image)
+    def reshape_image(self, image):
+        img = cv2.resize(image, (64, 64))
+        img = img/255
+        return img[None, :]
 
     def process_traffic_lights(self):
         """Finds closest visible traffic light, if one exists, and determines its
@@ -258,7 +294,7 @@ class TLDetector(object):
         stop_line_positions = self.config['stop_line_positions']
         
         if(self.pose and self.waypoints):
-            #TODO find the closest visible traffic light (if one exists)
+            #TODO (denise) make sure the point is not behind me
             light_position = self.get_closest_index(self.pose.pose, self.lights)
             state = self.lights[light_position].state
             light_wp = self.get_closest_index(self.lights[light_position].pose.pose, self.waypoints.waypoints)
@@ -271,6 +307,16 @@ class TLDetector(object):
             state = self.get_light_state(light)
             return light_wp, state
         return -1, TrafficLight.UNKNOWN
+
+    def cap_value(self, value, min, max):
+
+        if value < min:
+            vaue = min
+        elif value > max:
+            value = max
+
+        return value
+
 
 if __name__ == '__main__':
     try:
