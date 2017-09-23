@@ -23,26 +23,39 @@ class TLClassifier(object):
         output = image.copy()
         hsv = cv2.cvtColor(output, cv2.COLOR_BGR2HSV)
 
-        # define range of blue color in HSV 
-        lower_red = np.array([160,140,50]) 
-        upper_red = np.array([180,255,255])
+        red = cv2.inRange(hsv, np.array([160,140,50]) , np.array([180,255,255]))
+        yellow = cv2.inRange(hsv, np.array([20, 100, 100]), np.array([30, 255, 255]))
+        green = cv2.inRange(hsv, np.array([20, 100,100]), np.array([40, 255, 255]))
 
-        imgThreshHigh = cv2.inRange(hsv, lower_red, upper_red)
-        thresh = imgThreshHigh.copy()
+        _,contours_red,hierarchy = cv2.findContours(red, cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
+        _,contours_green,hierarchy = cv2.findContours(green, cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
+        _,contours_yellow,hierarchy = cv2.findContours(yellow, cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
+        cv2.drawContours(hsv, contours, -1, (0,0,100), 3)
 
-        _,contours,hierarchy = cv2.findContours(thresh, cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
-        cv2.drawContours(hsv, contours, -1, (0,0,255), 3)
+        cv2.imwrite('red.jpg', red)
+        cv2.imwrite('yellow.jpg', yellow)
+        cv2.imwrite('green.jpg', greem)
 
-        cv2.imwrite('contours.jpg', hsv)
 
-        max_area = 0
-        for cnt in contours:
-            area = cv2.contourArea(cnt)
-            max_area = max_area + area
+        red_area = 0
+        for cnt in contours_red:
+            red_area = red_area + cv2.contourArea(cnt)
+        green_area = 0
+        for cnt in contours_green:
+            green_area = green_area + cv2.contourArea(cnt)
+        yellow_area = 0
+        for cnt in contours_yellow:
+            yellow_area = yellow_area + cv2.contourArea(cnt)
 
-        height, width, channels = output.shape
 
-        if max_area > 50:
+        if red_area > green_area and red_area > yellow_area:
+            rospy.loginfo_throttle(2, "Red light")
             return TrafficLight.RED
+        if yellow_area > green_area and yellow_area > red_area:
+            rospy.loginfo_throttle(2, "Yellow light")
+            return TrafficLight.YELLOW
+        if green_area > red_area and green_area > yellow_area:
+            rospy.loginfo_throttle(2, "Green light")
+            return TrafficLight.GREEN
 
         return TrafficLight.UNKNOWN

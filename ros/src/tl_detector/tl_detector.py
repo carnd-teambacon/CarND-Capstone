@@ -132,7 +132,7 @@ class TLDetector(object):
         return index
 
 
-    def project_to_image_plane(self, ptx, pty, ptz):
+    def project_to_image_plane(self, ptx, pty, ptz, offsetX, offsetY):
         """Project point from 3D world coordinates to 2D camera image location
 
         Args:
@@ -175,6 +175,15 @@ class TLDetector(object):
                         ptz)
         point_to_cam = [sum(x) for x in zip(point_to_cam, transT)]
 
+        point_to_cam[0] = point_to_cam[0] + offsetX
+        point_to_cam[1] = point_to_cam[1] + offsetY
+
+        rospy.loginfo_throttle(3, "traffic light location: " + str(ptx) + "," + str(pty) + "," + str(ptz))
+        #rospy.loginfo_throttle(3, "cam to world trans: " + str(transT))
+        #rospy.loginfo_throttle(3, "cam to world rot: " + str(rotT))
+        #rospy.loginfo_throttle(3, "roll, pitch, yaw: " + str(rpy))
+        rospy.loginfo_throttle(3, "camera to traffic light: " + str(point_to_cam))
+
         ##########################################################################################
         # DELETE THIS MAYBE - MANUAL TWEAKS TO GET THE PROJECTION TO COME OUT CORRECTLY IN SIMULATOR
         # just override the simulator parameters. probably need a more reliable way to determine if 
@@ -186,11 +195,7 @@ class TLDetector(object):
             cy = cy * 2 
         ##########################################################################################
 
-        rospy.loginfo_throttle(3, "traffic light location: " + str(ptx) + "," + str(pty) + "," + str(ptz))
-        #rospy.loginfo_throttle(3, "cam to world trans: " + str(transT))
-        #rospy.loginfo_throttle(3, "cam to world rot: " + str(rotT))
-        #rospy.loginfo_throttle(3, "roll, pitch, yaw: " + str(rpy))
-        rospy.loginfo_throttle(3, "camera to traffic light: " + str(point_to_cam))
+
 
         x = -point_to_cam[1] * fx / point_to_cam[0]; 
         y = -point_to_cam[2] * fy / point_to_cam[0]; 
@@ -223,19 +228,19 @@ class TLDetector(object):
 
 
         #TODO (Denise) these offsets are only for test case, need to modify using normal vector
-        ptx = light.pose.pose.position.x - 10
+        ptx = light.pose.pose.position.x 
         pty = light.pose.pose.position.y 
-        ptz = light.pose.pose.position.z + 1
+        ptz = light.pose.pose.position.z 
 
-        x_top, y_top = self.project_to_image_plane(ptx, pty, ptz)
+        x_top, y_top = self.project_to_image_plane(ptx, pty, ptz, -.5, -1)
 
         
 
-        ptx = light.pose.pose.position.x + 10
+        ptx = light.pose.pose.position.x 
         pty = light.pose.pose.position.y
-        ptz = light.pose.pose.position.z - 1
+        ptz = light.pose.pose.position.z 
         
-        x_bottom, y_bottom = self.project_to_image_plane(ptx, pty, ptz)
+        x_bottom, y_bottom = self.project_to_image_plane(ptx, pty, ptz, -.5, 1)
 
         
 
