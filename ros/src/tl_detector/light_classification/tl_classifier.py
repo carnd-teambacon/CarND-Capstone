@@ -30,11 +30,13 @@ class TLClassifier(object):
         _,contours_red,hierarchy = cv2.findContours(red, cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
         _,contours_green,hierarchy = cv2.findContours(green, cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
         _,contours_yellow,hierarchy = cv2.findContours(yellow, cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
-        cv2.drawContours(hsv, contours, -1, (0,0,100), 3)
+        cv2.drawContours(red, contours_red, -1, (0,0,100), 3)
+        cv2.drawContours(green, contours_green, -1, (0,0,100), 3)
+        cv2.drawContours(yellow, contours_yellow, -1, (0,0,100), 3)
 
         cv2.imwrite('red.jpg', red)
         cv2.imwrite('yellow.jpg', yellow)
-        cv2.imwrite('green.jpg', greem)
+        cv2.imwrite('green.jpg', green)
 
 
         red_area = 0
@@ -49,13 +51,13 @@ class TLClassifier(object):
 
 
         if red_area > green_area and red_area > yellow_area:
-            rospy.loginfo_throttle(2, "Red light")
+            print( "Red light")
             return TrafficLight.RED
         if yellow_area > green_area and yellow_area > red_area:
-            rospy.loginfo_throttle(2, "Yellow light")
+            print("Yellow light")
             return TrafficLight.YELLOW
         if green_area > red_area and green_area > yellow_area:
-            rospy.loginfo_throttle(2, "Green light")
+            print( "Green light")
             return TrafficLight.GREEN
 
         return TrafficLight.UNKNOWN

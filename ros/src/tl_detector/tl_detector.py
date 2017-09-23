@@ -175,14 +175,14 @@ class TLDetector(object):
                         ptz)
         point_to_cam = [sum(x) for x in zip(point_to_cam, transT)]
 
-        point_to_cam[0] = point_to_cam[0] + offsetX
-        point_to_cam[1] = point_to_cam[1] + offsetY
+        point_to_cam[1] = point_to_cam[1] + offsetX
+        point_to_cam[2] = point_to_cam[2] + offsetY
 
-        rospy.loginfo_throttle(3, "traffic light location: " + str(ptx) + "," + str(pty) + "," + str(ptz))
+        #rospy.loginfo_throttle(3, "traffic light location: " + str(ptx) + "," + str(pty) + "," + str(ptz))
         #rospy.loginfo_throttle(3, "cam to world trans: " + str(transT))
         #rospy.loginfo_throttle(3, "cam to world rot: " + str(rotT))
         #rospy.loginfo_throttle(3, "roll, pitch, yaw: " + str(rpy))
-        rospy.loginfo_throttle(3, "camera to traffic light: " + str(point_to_cam))
+        #rospy.loginfo_throttle(3, "camera to traffic light: " + str(point_to_cam))
 
         ##########################################################################################
         # DELETE THIS MAYBE - MANUAL TWEAKS TO GET THE PROJECTION TO COME OUT CORRECTLY IN SIMULATOR
@@ -232,7 +232,7 @@ class TLDetector(object):
         pty = light.pose.pose.position.y 
         ptz = light.pose.pose.position.z 
 
-        x_top, y_top = self.project_to_image_plane(ptx, pty, ptz, -.5, -1)
+        x_top, y_top = self.project_to_image_plane(ptx, pty, ptz, .5, 1)
 
         
 
@@ -240,7 +240,10 @@ class TLDetector(object):
         pty = light.pose.pose.position.y
         ptz = light.pose.pose.position.z 
         
-        x_bottom, y_bottom = self.project_to_image_plane(ptx, pty, ptz, -.5, 1)
+        x_bottom, y_bottom = self.project_to_image_plane(ptx, pty, ptz, -.5, -1)
+
+        if x_bottom < 0 and y_bottom < 0 and x_top > 600 and y_top > 800 :
+            return TrafficLight.UNKNOWN
 
         
 
@@ -254,12 +257,12 @@ class TLDetector(object):
         y_top = self.cap_value(y_top, 0, 800)
         y_bottom = self.cap_value(y_bottom, 0, 800)
 
-        rospy.loginfo_throttle(2, "top left: " + str(x_top) + "," + str(y_top))
-        rospy.loginfo_throttle(2, "bottom left: " + str(x_bottom) + "," + str(y_bottom))
+        rospy.loginfo_throttle(4, "top left: " + str(x_top) + "," + str(y_top))
+        rospy.loginfo_throttle(4, "bottom left: " + str(x_bottom) + "," + str(y_bottom))
 
 
         #if image is too small, ignore
-        if x_bottom - x_top< 50 or y_bottom-y_top < 50:
+        if x_bottom - x_top < 15 or y_bottom-y_top < 15:
             return TrafficLight.UNKNOWN
 
 
@@ -268,7 +271,7 @@ class TLDetector(object):
 
         crop_img = cpy[int(y_top):int(y_bottom), int(x_top):int(x_bottom)]
 
-
+        cv2.imwrite('crop.jpg', crop_img)
         #TODO use light location to zoom in on traffic light in image
 
         #Get classification
