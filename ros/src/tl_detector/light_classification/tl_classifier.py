@@ -51,13 +51,13 @@ class TLClassifier(object):
 
 
         if red_area > green_area and red_area > yellow_area:
-            print( "Red light")
+           # print( "Red light")
             return TrafficLight.RED
         if yellow_area > green_area and yellow_area > red_area:
-            print("Yellow light")
+           # print("Yellow light")
             return TrafficLight.YELLOW
         if green_area > red_area and green_area > yellow_area:
-            print( "Green light")
+          #  print( "Green light")
             return TrafficLight.GREEN
-
+            
         return TrafficLight.UNKNOWN

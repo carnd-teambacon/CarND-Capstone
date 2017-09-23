@@ -203,7 +203,7 @@ class TLDetector(object):
         x = int(x + cx)
         y = int(y + cy) 
 
-        rospy.loginfo_throttle(3, "traffic light pixel (x,y): " + str(x) + "," + str(y))
+       # rospy.loginfo_throttle(3, "traffic light pixel (x,y): " + str(x) + "," + str(y))
 
         return (x, y)
 
@@ -225,6 +225,7 @@ class TLDetector(object):
 
         self.camera_image.encoding = "rgb8"
         cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
+        height, width, channels = cv_image.shape
 
 
         #TODO (Denise) these offsets are only for test case, need to modify using normal vector
@@ -242,7 +243,7 @@ class TLDetector(object):
         
         x_bottom, y_bottom = self.project_to_image_plane(ptx, pty, ptz, -.5, -1)
 
-        if x_bottom < 0 and y_bottom < 0 and x_top > 600 and y_top > 800 :
+        if x_bottom > width or y_bottom  > height or x_top < 0 or y_top  < 0:
             return TrafficLight.UNKNOWN
 
         
@@ -252,17 +253,20 @@ class TLDetector(object):
         #TODO (denise) need make sure this is the correct area to crop
         cpy = cv_image.copy()
 
-        x_top = self.cap_value(x_top, 0, 600)
-        x_bottom = self.cap_value(x_bottom, 0, 600)
-        y_top = self.cap_value(y_top, 0, 800)
-        y_bottom = self.cap_value(y_bottom, 0, 800)
+       # x_top = self.cap_value(x_top, 0, 600)
+       # x_bottom = self.cap_value(x_bottom, 0, 600)
+       # y_top = self.cap_value(y_top, 0, 800)
+        #y_bottom = self.cap_value(y_bottom, 0, 800)
 
-        rospy.loginfo_throttle(4, "top left: " + str(x_top) + "," + str(y_top))
-        rospy.loginfo_throttle(4, "bottom left: " + str(x_bottom) + "," + str(y_bottom))
+        #rospy.loginfo_throttle(4, "top left: " + str(x_top) + "," + str(y_top))
+        #rospy.loginfo_throttle(4, "bottom left: " + str(x_bottom) + "," + str(y_bottom))
 
 
         #if image is too small, ignore
-        if x_bottom - x_top < 15 or y_bottom-y_top < 15:
+        
+        if x_bottom is None or x_top is None or y_top is None or y_bottom is None:
+            return TrafficLight.UNKNOWN
+        if x_bottom - x_top < 50 or y_bottom-y_top < 50:
             return TrafficLight.UNKNOWN
 
 
@@ -276,7 +280,7 @@ class TLDetector(object):
 
         #Get classification
         a = self.light_classifier.get_classification(crop_img)
-        rospy.loginfo_throttle(2, "Light: " + str(a))
+        #rospy.loginfo_throttle(2, "Light: " + str(a))
 
         return 0
 
@@ -308,6 +312,7 @@ class TLDetector(object):
             light_wp = self.get_closest_index(self.lights[light_position].pose.pose, self.waypoints.waypoints)
             #TODO (denise) this should be the final state used
             calc_state = self.get_light_state(self.lights[light_position])
+            #rospy.loginfo_throttle(2, "Light: " + str(state))
             return light_wp, state
 
 

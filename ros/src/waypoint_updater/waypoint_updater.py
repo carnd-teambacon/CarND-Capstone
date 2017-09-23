@@ -24,6 +24,7 @@ TODO (for Yousuf and Aaron): Stopline location for each traffic light.
 
 LOOKAHEAD_WPS = 200 # Number of waypoints we will publish. You can change this number
 DEBUG_MODE = False
+MAX_DECEL = 1.0
 
 class WaypointUpdater(object):
     def __init__(self):
@@ -38,7 +39,8 @@ class WaypointUpdater(object):
 
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
         self.cur_pose = None
-        self.waypoints = None        
+        self.waypoints = None  
+        self.red_light_waypoint = None      
 
         rospy.spin()
 
@@ -54,8 +56,10 @@ class WaypointUpdater(object):
 
     def traffic_cb(self, msg):
         # TODO: Callback for /traffic_waypoint message. We will implement it later
-        if msg > -1:
-            self.set_waypoint_velocity(self.waypoints, int(msg.data), 0)
+        rospy.loginfo("Taffic cb %f", msg.data)
+        if msg.data is not None and msg.data > -1:
+            self.red_light_waypoint = msg.data
+            self.publish()
        # pass
 
     def obstacle_cb(self, msg):
@@ -75,6 +79,10 @@ class WaypointUpdater(object):
             dist += dl(waypoints[wp1].pose.pose.position, waypoints[i].pose.pose.position)
             wp1 = i
         return dist
+
+    def distance(self, p1, p2):
+        x, y, z = p1.x - p2.x, p1.y - p2.y, p1.z - p2.z
+        return math.sqrt(x*x + y*y + z*z)
     
     def closest_waypoint(self, pose, waypoints):
         # simply take the code from the path planning module and re-implement it here
@@ -105,16 +113,37 @@ class WaypointUpdater(object):
         
         return closest_waypoint
 
+    def decelerate(self, waypoints):
+        last = waypoints[-1]
+        last.twist.twist.linear.x = 0.
+        for wp in waypoints[:-1][::-1]:
+            dist = self.distance(wp.pose.pose.position, last.pose.pose.position)
+            vel = math.sqrt(2 * MAX_DECEL * dist) * 3.6
+            if vel < 1.:
+                vel = 0.
+            wp.twist.twist.linear.x = min(vel, wp.twist.twist.linear.x)
+        return waypoints
+
     def publish(self):
         
         if self.cur_pose is not None:
             next_waypoint_index = self.next_waypoint(self.cur_pose, self.waypoints)
-            lookahead_waypoints = self.waypoints[next_waypoint_index:next_waypoint_index+LOOKAHEAD_WPS]
+            rospy.loginfo( "Light index: " + str(self.red_light_waypoint) + " next waypoint" + str(next_waypoint_index) )
+            if self.red_light_waypoint is None or self.red_light_waypoint <= next_waypoint_index \
+                or self.red_light_waypoint > next_waypoint_index+LOOKAHEAD_WPS:
+                rospy.loginfo("COntinue")
+                lookahead_waypoints = self.waypoints[next_waypoint_index:next_waypoint_index+LOOKAHEAD_WPS]
+
             
-            # set the velocity for lookahead waypoints
-            for i in range(len(lookahead_waypoints) - 1):                
-                # convert 10 miles per hour to meters per sec
-                self.set_waypoint_velocity(lookahead_waypoints, i, (10 * 1609.34) / (60 * 60))
+                # set the velocity for lookahead waypoints
+                for i in range(len(lookahead_waypoints) - 1):                
+                    # convert 10 miles per hour to meters per sec
+                    self.set_waypoint_velocity(lookahead_waypoints, i, (10 * 1609.34) / (60 * 60))
+
+            else:
+                rospy.loginfo("Decelerate")
+                lookahead_waypoints = self.waypoints[next_waypoint_index:self.red_light_waypoint]
+                lookahead_waypoints = self.decelerate(lookahead_waypoints)
 
             if DEBUG_MODE:
                 posx = self.waypoints[next_waypoint_index].pose.pose.position.x
