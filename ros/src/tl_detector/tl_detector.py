@@ -52,8 +52,8 @@ class TLDetector(object):
         self.config = yaml.load(config_string)
 
         self.upcoming_red_light_pub = rospy.Publisher('/traffic_waypoint', Int32, queue_size=1)
-        self.tl_img_crop_pub = rospy.Publisher('/tl_img_crop', Image, queue_size=1)
-        self.tl_center_img_pub = rospy.Publisher('/tl_center_img', Image, queue_size=1)
+        #self.tl_img_crop_pub = rospy.Publisher('/tl_img_crop', Image, queue_size=1)
+        #self.tl_center_img_pub = rospy.Publisher('/tl_center_img', Image, queue_size=1)
 
         self.bridge = CvBridge()
         self.light_classifier = TLClassifier()
@@ -177,7 +177,7 @@ class TLDetector(object):
         #rospy.loginfo_throttle(3, "cam to world trans: " + str(transT))
         #rospy.loginfo_throttle(3, "cam to world rot: " + str(rotT))
         #rospy.loginfo_throttle(3, "roll, pitch, yaw: " + str(rpy))
-        rospy.loginfo_throttle(3, "camera to traffic light: " + str(point_to_cam))
+        #rospy.loginfo_throttle(3, "camera to traffic light: " + str(point_to_cam))
 
         ##########################################################################################
         # DELETE THIS MAYBE - MANUAL TWEAKS TO GET THE PROJECTION TO COME OUT CORRECTLY IN SIMULATOR
@@ -196,7 +196,7 @@ class TLDetector(object):
 
         x = int(x + cx)
         y = int(y + cy) 
-        rospy.loginfo_throttle(3, "traffic light pixel (x,y): " + str(x) + "," + str(y))
+        #rospy.loginfo_throttle(3, "traffic light pixel (x,y): " + str(x) + "," + str(y))
 
         return (x, y)
 
@@ -221,7 +221,7 @@ class TLDetector(object):
         pty = light.pose.pose.position.y 
         ptz = light.pose.pose.position.z 
 
-        x_center, y_center = self.project_to_image_plane(ptx, pty, ptz, 0, 0)
+        #x_center, y_center = self.project_to_image_plane(ptx, pty, ptz, 0, 0)
 
         #TODO (denise) what should this size be?
         #stoplights are about 1067x356 mm
@@ -235,9 +235,9 @@ class TLDetector(object):
         #TODO (denise) need make sure this is the correct area to crop
         cpy = cv_image.copy()
 
-       # x_top = self.cap_value(x_top, 0, 600)
-       # x_bottom = self.cap_value(x_bottom, 0, 600)
-       # y_top = self.cap_value(y_top, 0, 800)
+        #x_top = self.cap_value(x_top, 0, 600)
+        #x_bottom = self.cap_value(x_bottom, 0, 600)
+        #y_top = self.cap_value(y_top, 0, 800)
         #y_bottom = self.cap_value(y_bottom, 0, 800)
 
         #rospy.loginfo_throttle(4, "top left: " + str(x_top) + "," + str(y_top))
@@ -246,33 +246,32 @@ class TLDetector(object):
         #if image is too small, ignore
         if x_bottom is None or x_top is None or y_top is None or y_bottom is None:
             return TrafficLight.UNKNOWN
-        #if x_bottom - x_top < 50 or y_bottom-y_top < 50:
-        #    return TrafficLight.UNKNOWN
-
+        if x_bottom - x_top < 20 or y_bottom-y_top < 40:
+            return TrafficLight.UNKNOWN
 
         crop_img = cpy[int(y_top):int(y_bottom), int(x_top):int(x_bottom)]
 
         # publish the image with traffic light with markers on center, top left, and bottom right
-        cv2.circle(cpy,(x_center, y_center), 8, (255,0,255), -1)
-        cv2.circle(cpy,(x_top, y_top), 8, (255,0,255), -1)
-        cv2.circle(cpy,(x_bottom, y_bottom), 8, (255,0,255), -1)
-        tl_center_img_msg = self.bridge.cv2_to_imgmsg(cpy, encoding="bgr8")
-        self.tl_center_img_pub.publish(tl_center_img_msg)
+        #cv2.circle(cpy,(x_center, y_center), 8, (255,0,255), -1)
+        #cv2.circle(cpy,(x_top, y_top), 8, (255,0,255), -1)
+        #cv2.circle(cpy,(x_bottom, y_bottom), 8, (255,0,255), -1)
+        #tl_center_img_msg = self.bridge.cv2_to_imgmsg(cpy, encoding="bgr8")
+        #self.tl_center_img_pub.publish(tl_center_img_msg)
 
         # publish the cropped image (hopefully) containing just the traffic light
-        tl_img_crop_msg = self.bridge.cv2_to_imgmsg(crop_img, encoding="bgr8")
-        self.tl_img_crop_pub.publish(tl_img_crop_msg)
+        #tl_img_crop_msg = self.bridge.cv2_to_imgmsg(crop_img, encoding="bgr8")
+        #self.tl_img_crop_pub.publish(tl_img_crop_msg)
 
-        cv2.imwrite('crop.jpg', crop_img)
+        #cv2.imwrite('crop.jpg', crop_img)
         #TODO use light location to zoom in on traffic light in image
 
         #Get classification
         a = self.light_classifier.get_classification(crop_img)
+        #return self.light_classifier.get_classification(cv_image)
         #rospy.loginfo_throttle(2, "Light: " + str(a))
 
         return 0
 
-        #return self.light_classifier.get_classification(cv_image)
     def reshape_image(self, image):
         img = cv2.resize(image, (64, 64))
         img = img/255
