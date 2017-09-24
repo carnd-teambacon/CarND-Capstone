@@ -63,7 +63,7 @@ class DBWNode(object):
         cp.steer_ratio = rospy.get_param('~steer_ratio', 14.8)
         cp.max_lat_accel = rospy.get_param('~max_lat_accel', 3.)
         cp.max_steer_angle = rospy.get_param('~max_steer_angle', 8.)
-        cp.min_speed = 1.0 # TODO param
+        cp.min_speed = 0.1
 
         self.steer_pub = rospy.Publisher('/vehicle/steering_cmd',
                                          SteeringCmd, queue_size=1)
@@ -79,8 +79,6 @@ class DBWNode(object):
         self.latest_twist_cmd = None
 
         # TIME
-        self.current_timestamp = 0.0
-        self.del_time = 0.0
         self.previous_timestamp = rospy.get_time()
 
         #  Create `TwistController` object
@@ -108,37 +106,23 @@ class DBWNode(object):
     def loop(self):
         rate = rospy.Rate(50) # 50Hz
         while not rospy.is_shutdown():
-            self.current_timestamp = rospy.get_time()
-            self.del_time = self.current_timestamp - self.previous_timestamp
-            self.previous_timestamp = self.current_timestamp
-            # TODO: Get predicted throttle, brake, and steering using `twist_controller`
-            # You should only publish the control commands if dbw is enabled
-            # throttle, brake, steering = self.controller.control(<proposed linear velocity>,
-            #                                                     <proposed angular velocity>,
-            #                                                     <current linear velocity>,
-            #                                                     <dbw status>,
-            #                                                     <any other argument you need>
-            #                                                     <del_time>)
 
-            # in order to use the controller we need to the following
-            # for throttle controller: we need the current speed error and the del time
-            # for the steering error: we need the CTE to guide us back to the center, but it seems like the
-            #   yaw controller will return a steering angle, do we still need a CTE?
+            # TIME
+            current_timestamp = rospy.get_time()
+            del_time = current_timestamp - self.previous_timestamp
+            self.previous_timestamp = current_timestamp
+
             rospy.loginfo("""dbw_enabled : {}""".format(self.dbw_enabled))
-
             if self.dbw_enabled and self.current_velocity is not None and self.latest_twist_cmd is not None:
 
                 if self.reset_flag:
                     self.controller.reset()
                     self.reset_flag = False
 
-                vel_err_x = self.latest_twist_cmd.twist.linear.x - self.current_velocity.twist.linear.x
                 throttle, brake, steering = self.controller.control(
-                    lin_vel=abs(self.latest_twist_cmd.twist.linear.x),
-                    ang_vel=self.latest_twist_cmd.twist.angular.z,
-                    current_lin_vel=self.current_velocity.twist.linear.x,
-                    del_time=self.del_time,
-                    vel_err=vel_err_x)
+                    twist_cmd=self.latest_twist_cmd,
+                    current_velocity=self.current_velocity,
+                    del_time=del_time)
 
                 rospy.loginfo("""publish: t={} b={} s={}""".format(throttle, brake, steering))
 
