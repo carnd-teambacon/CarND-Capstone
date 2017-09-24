@@ -25,19 +25,14 @@ class TLClassifier(object):
 
         red = cv2.inRange(hsv, np.array([160,140,50]) , np.array([180,255,255]))
         yellow = cv2.inRange(hsv, np.array([20, 100, 100]), np.array([30, 255, 255]))
-        green = cv2.inRange(hsv, np.array([20, 100,100]), np.array([40, 255, 255]))
+        green = cv2.inRange(hsv, np.array([50, 100, 100]), np.array([70, 255, 255]))
 
         _,contours_red,hierarchy = cv2.findContours(red, cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
         _,contours_green,hierarchy = cv2.findContours(green, cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
         _,contours_yellow,hierarchy = cv2.findContours(yellow, cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
-        cv2.drawContours(red, contours_red, -1, (0,0,100), 3)
-        cv2.drawContours(green, contours_green, -1, (0,0,100), 3)
-        cv2.drawContours(yellow, contours_yellow, -1, (0,0,100), 3)
-
-        cv2.imwrite('red.jpg', red)
-        cv2.imwrite('yellow.jpg', yellow)
-        cv2.imwrite('green.jpg', green)
-
+        #cv2.drawContours(red, contours_red, -1, (0,0,100), 3)
+       # cv2.drawContours(green, contours_green, -1, (0,0,100), 3)
+        #cv2.drawContours(yellow, contours_yellow, -1, (0,0,100), 3)
 
         red_area = 0
         for cnt in contours_red:
@@ -51,13 +46,10 @@ class TLClassifier(object):
 
 
         if red_area > green_area and red_area > yellow_area:
-           # print( "Red light")
             return TrafficLight.RED
         if yellow_area > green_area and yellow_area > red_area:
-           # print("Yellow light")
             return TrafficLight.YELLOW
         if green_area > red_area and green_area > yellow_area:
-          #  print( "Green light")
             return TrafficLight.GREEN
             
         return TrafficLight.UNKNOWN
