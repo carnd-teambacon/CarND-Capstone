@@ -184,11 +184,11 @@ class TLDetector(object):
         # just override the simulator parameters. probably need a more reliable way to determine if 
         # using simulator and not real car
         if fx < 10:
-            fx = 2344
-            fy = 2552 #303.8
-            point_to_cam[2] -= 2.0
+            fx = 2574
+            fy = 2744
+            point_to_cam[2] -= 1.0
             cx = image_height/2 + 70
-            cy = image_height
+            cy = image_height + 50
         ##########################################################################################
 
         x = -point_to_cam[1] * fx / point_to_cam[0]; 
@@ -223,11 +223,12 @@ class TLDetector(object):
 
         x_center, y_center = self.project_to_image_plane(ptx, pty, ptz, 0, 0)
 
+        #TODO (denise) what should this size be?
+        #stoplights are about 1067x356 mm
         x_top, y_top = self.project_to_image_plane(ptx, pty, ptz, .5, 1)
-        
         x_bottom, y_bottom = self.project_to_image_plane(ptx, pty, ptz, -.5, -1)
 
-        if x_bottom > width or y_bottom  > height or x_top < 0 or y_top  < 0:
+        if x_bottom > width or y_bottom > height or x_top < 0 or y_top < 0:
             return TrafficLight.UNKNOWN
 
         #crop image
@@ -245,11 +246,9 @@ class TLDetector(object):
         #if image is too small, ignore
         if x_bottom is None or x_top is None or y_top is None or y_bottom is None:
             return TrafficLight.UNKNOWN
-        if x_bottom - x_top < 50 or y_bottom-y_top < 50:
-            return TrafficLight.UNKNOWN
+        #if x_bottom - x_top < 50 or y_bottom-y_top < 50:
+        #    return TrafficLight.UNKNOWN
 
-        #TODO (denise) what should this size be?
-        #stoplights are about 1067x356 mm
 
         crop_img = cpy[int(y_top):int(y_bottom), int(x_top):int(x_bottom)]
 
