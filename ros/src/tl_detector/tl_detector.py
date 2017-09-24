@@ -52,6 +52,8 @@ class TLDetector(object):
         self.config = yaml.load(config_string)
 
         self.upcoming_red_light_pub = rospy.Publisher('/traffic_waypoint', Int32, queue_size=1)
+        self.tl_img_crop_pub = rospy.Publisher('/tl_img_crop', Image, queue_size=1)
+        self.tl_center_img_pub = rospy.Publisher('/tl_center_img', Image, queue_size=1)
 
         self.bridge = CvBridge()
         self.light_classifier = TLClassifier()
@@ -62,7 +64,6 @@ class TLDetector(object):
         self.last_wp = -1
         self.state_count = 0
 
-        
         #model.summary()
 
         rospy.spin()
@@ -79,10 +80,8 @@ class TLDetector(object):
     def image_cb(self, msg):
         """Identifies red lights in the incoming camera image and publishes the index
             of the waypoint closest to the red light's stop line to /traffic_waypoint
-
         Args:
             msg (Image): image from car-mounted camera
-
         """
         
         if not self.has_image:
@@ -115,10 +114,9 @@ class TLDetector(object):
             https://en.wikipedia.org/wiki/Closest_pair_of_points_problem
         Args:
             pose (Pose): position to match a waypoint to
-
+            post_list: a list of positions (of traffic lights)
         Returns:
             int: index of the closest waypoint in self.waypoints
-
         """
         #TODO implement
         #TODO(denise) implement optimized algorithm
@@ -134,14 +132,11 @@ class TLDetector(object):
 
     def project_to_image_plane(self, ptx, pty, ptz, offsetX, offsetY):
         """Project point from 3D world coordinates to 2D camera image location
-
         Args:
             point_in_world (Point): 3D location of a point in the world
-
         Returns:
             x (int): x coordinate of target point in image
             y (int): y coordinate of target point in image
-
         """
 
         fx = self.config['camera_info']['focal_length_x']
@@ -182,7 +177,7 @@ class TLDetector(object):
         #rospy.loginfo_throttle(3, "cam to world trans: " + str(transT))
         #rospy.loginfo_throttle(3, "cam to world rot: " + str(rotT))
         #rospy.loginfo_throttle(3, "roll, pitch, yaw: " + str(rpy))
-        #rospy.loginfo_throttle(3, "camera to traffic light: " + str(point_to_cam))
+        rospy.loginfo_throttle(3, "camera to traffic light: " + str(point_to_cam))
 
         ##########################################################################################
         # DELETE THIS MAYBE - MANUAL TWEAKS TO GET THE PROJECTION TO COME OUT CORRECTLY IN SIMULATOR
@@ -191,32 +186,26 @@ class TLDetector(object):
         if fx < 10:
             fx = 2344
             fy = 2552 #303.8
-            point_to_cam[2] -= 1.0
-            cy = cy * 2 
+            point_to_cam[2] -= 2.0
+            cx = image_height/2 + 70
+            cy = image_height
         ##########################################################################################
-
-
 
         x = -point_to_cam[1] * fx / point_to_cam[0]; 
         y = -point_to_cam[2] * fy / point_to_cam[0]; 
 
         x = int(x + cx)
         y = int(y + cy) 
-
-       # rospy.loginfo_throttle(3, "traffic light pixel (x,y): " + str(x) + "," + str(y))
+        rospy.loginfo_throttle(3, "traffic light pixel (x,y): " + str(x) + "," + str(y))
 
         return (x, y)
 
-
     def get_light_state(self, light):
         """Determines the current color of the traffic light
-
         Args:
             light (TrafficLight): light to classify
-
         Returns:
             int: ID of traffic light color (specified in styx_msgs/TrafficLight)
-
         """
         ###TODO(denise) Replace with CV later
         if(not self.has_image):
@@ -227,27 +216,19 @@ class TLDetector(object):
         cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
         height, width, channels = cv_image.shape
 
-
         #TODO (Denise) these offsets are only for test case, need to modify using normal vector
         ptx = light.pose.pose.position.x 
         pty = light.pose.pose.position.y 
         ptz = light.pose.pose.position.z 
 
+        x_center, y_center = self.project_to_image_plane(ptx, pty, ptz, 0, 0)
+
         x_top, y_top = self.project_to_image_plane(ptx, pty, ptz, .5, 1)
-
-        
-
-        ptx = light.pose.pose.position.x 
-        pty = light.pose.pose.position.y
-        ptz = light.pose.pose.position.z 
         
         x_bottom, y_bottom = self.project_to_image_plane(ptx, pty, ptz, -.5, -1)
 
         if x_bottom > width or y_bottom  > height or x_top < 0 or y_top  < 0:
             return TrafficLight.UNKNOWN
-
-        
-
 
         #crop image
         #TODO (denise) need make sure this is the correct area to crop
@@ -261,19 +242,27 @@ class TLDetector(object):
         #rospy.loginfo_throttle(4, "top left: " + str(x_top) + "," + str(y_top))
         #rospy.loginfo_throttle(4, "bottom left: " + str(x_bottom) + "," + str(y_bottom))
 
-
         #if image is too small, ignore
-        
         if x_bottom is None or x_top is None or y_top is None or y_bottom is None:
             return TrafficLight.UNKNOWN
         if x_bottom - x_top < 50 or y_bottom-y_top < 50:
             return TrafficLight.UNKNOWN
 
-
         #TODO (denise) what should this size be?
         #stoplights are about 1067x356 mm
 
         crop_img = cpy[int(y_top):int(y_bottom), int(x_top):int(x_bottom)]
+
+        # publish the image with traffic light with markers on center, top left, and bottom right
+        cv2.circle(cpy,(x_center, y_center), 8, (255,0,255), -1)
+        cv2.circle(cpy,(x_top, y_top), 8, (255,0,255), -1)
+        cv2.circle(cpy,(x_bottom, y_bottom), 8, (255,0,255), -1)
+        tl_center_img_msg = self.bridge.cv2_to_imgmsg(cpy, encoding="bgr8")
+        self.tl_center_img_pub.publish(tl_center_img_msg)
+
+        # publish the cropped image (hopefully) containing just the traffic light
+        tl_img_crop_msg = self.bridge.cv2_to_imgmsg(crop_img, encoding="bgr8")
+        self.tl_img_crop_pub.publish(tl_img_crop_msg)
 
         cv2.imwrite('crop.jpg', crop_img)
         #TODO use light location to zoom in on traffic light in image
