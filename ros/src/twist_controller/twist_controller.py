@@ -10,7 +10,7 @@ ONE_MPH = 0.44704
 class TwistController(object):
     def __init__(self, cp):
 
-        self.pid = PID(kp=1.2, ki=0.005, kd=0.5, mn=cp.decel_limit, mx=cp.accel_limit) # values?
+        self.pid = PID(kp=5.0, ki=0.5, kd=0.5) # self.pid = PID(kp=1.2, ki=0.005, kd=0.5, mn=cp.decel_limit, mx=cp.accel_limit)
         self.yaw_controller = YawController(
             wheel_base=cp.wheel_base,
             steer_ratio=cp.steer_ratio,
@@ -18,6 +18,8 @@ class TwistController(object):
             max_lat_accel=cp.max_lat_accel,
             max_steer_angle=cp.max_steer_angle)
 
+        self.s_lpf = LowPassFilter(tau=3, ts=1)
+        self.t_lpf = LowPassFilter(tau=3, ts=1)
 
     def reset(self):
         self.pid.reset()
@@ -30,9 +32,14 @@ class TwistController(object):
         # create a PID object for velocity and steer
         # create a Yaw_controller to get the steer angle
 
-        acceleration = self.pid.step(vel_err, del_time)
         next_steer = self.yaw_controller.get_steering(lin_vel, ang_vel, current_lin_vel)
-        
+        next_steer = self.s_lpf.filt(next_steer)
+        self.s_lpf.last_val = next_steer
+
+        acceleration = self.pid.step(vel_err, del_time)
+        acceleration = self.t_lpf.filt(acceleration)
+        self.t_lpf.last_val = acceleration
+
         if acceleration > 0.0:
             throttle = acceleration
             brake = 0.0
