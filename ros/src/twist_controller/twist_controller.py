@@ -9,49 +9,39 @@ ONE_MPH = 0.44704
 
 
 class TwistController(object):
-    def __init__(self):
-        # TODO: Implement
-        self.wheel_base = rospy.get_param('~wheel_base', 2.8498)
-        self.steer_ratio = rospy.get_param('~steer_ratio', 14.8)
-        self.max_lat_accel = rospy.get_param('~max_lat_accel', 3.)
-        self.max_steer_angle = rospy.get_param('~max_steer_angle', 8.)
-        self.min_speed = 3
-
+    def __init__(self, cp):
         self.yaw_controller = YawController(
-            wheel_base=self.wheel_base,
-            steer_ratio=self.steer_ratio,
-            min_speed=self.min_speed,
-            max_lat_accel=self.max_lat_accel,
-            max_steer_angle=self.max_steer_angle)
+            wheel_base=cp.wheel_base,
+            steer_ratio=cp.steer_ratio,
+            min_speed=cp.min_speed,
+            max_lat_accel=cp.max_lat_accel,
+            max_steer_angle=cp.max_steer_angle)
 
-        self.pid = PID(kp=5.0, ki=0.5, kd=0.5) #  will need to tune this
-	self.s_lpf = LowPassFilter(tau = 3, ts = 1)
-	self.t_lpf = LowPassFilter(tau = 3, ts = 1)
-	
+        self.pid = PID(kp=5, ki=0.5, kd=0.5, mn=cp.decel_limit, mx=cp.accel_limit)
+        self.s_lpf = LowPassFilter(tau = 3, ts = 1)
+        self.t_lpf = LowPassFilter(tau = 3, ts = 1)
 
+    def reset(self):
+        self.pid.reset()
 
-    def control(self, lin_vel, ang_vel, current_lin_vel, dbw_status, del_time, vel_err):
-        # TODO: Implement
-        # probably should make a PID controller for steer and throttle
+    def control(self, twist_cmd, current_velocity, del_time):
+        
+        lin_vel = abs(twist_cmd.twist.linear.x)
+        ang_vel = twist_cmd.twist.angular.z
+        vel_err = lin_vel - current_velocity.twist.linear.x
 
-        # create a PID object for velocity and steer
-        # create a Yaw_controller to get the steer angle
-
-        next_steer = self.yaw_controller.get_steering(lin_vel, ang_vel, current_lin_vel)
-
-	next_steer = self.s_lpf.filt(next_steer)
-	self.s_lpf.last_val = next_steer
+        next_steer = self.yaw_controller.get_steering(lin_vel, ang_vel, current_velocity.twist.linear.x)
+        next_steer = self.s_lpf.filt(next_steer)
 
         acceleration = self.pid.step(vel_err, del_time)
-	acceleration = self.t_lpf.filt(acceleration)
-	self.t_lpf.last_val = acceleration
+        acceleration = self.t_lpf.filt(acceleration)
+
         if acceleration > 0.0:
             throttle = acceleration
             brake = 0.0
         else:
             throttle = 0.0
-            brake = 1.0
-	#rospy.logwarn('throttle:')
-	#rospy.logwarn(throttle)
+            brake = -acceleration
+
         # Return throttle, brake, steer
         return throttle, brake, next_steer
