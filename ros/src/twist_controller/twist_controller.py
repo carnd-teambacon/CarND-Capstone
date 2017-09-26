@@ -44,7 +44,7 @@ class TwistController(object):
             throttle = 0.0
             deceleration = -acceleration
 
-            if deceleration < self.brake_deadband:
+            if deceleration < self.cp.brake_deadband:
                 deceleration = 0.0
 
             brake = deceleration * (self.cp.vehicle_mass + self.cp.fuel_capacity * GAS_DENSITY) * self.cp.wheel_radius

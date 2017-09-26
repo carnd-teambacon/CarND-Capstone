@@ -114,7 +114,7 @@ class WaypointUpdater(object):
         last = waypoints[-1]
         last.twist.twist.linear.x = 0.
         # start from the waypoint before last and go backwards
-        for wp in reversed(waypoints[:-1]:
+        for wp in reversed(waypoints[:-1]):
             dist = self.distance(wp.pose.pose.position, last.pose.pose.position)
             vel = math.sqrt(2 * MAX_DECEL * dist) * 3.6
             if vel < 1.:
