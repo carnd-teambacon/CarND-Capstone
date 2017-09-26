@@ -17,6 +17,7 @@ class TwistController(object):
             max_lat_accel=cp.max_lat_accel,
             max_steer_angle=cp.max_steer_angle)
 
+        self.cp = cp
         self.pid = PID(kp=5, ki=0.5, kd=0.5, mn=cp.decel_limit, mx=cp.accel_limit)
         self.s_lpf = LowPassFilter(tau = 3, ts = 1)
         self.t_lpf = LowPassFilter(tau = 3, ts = 1)
@@ -41,7 +42,12 @@ class TwistController(object):
             brake = 0.0
         else:
             throttle = 0.0
-            brake = -acceleration
+            deceleration = -acceleration
+
+            if deceleration < self.brake_deadband:
+                deceleration = 0.0
+
+            brake = deceleration * (self.cp.vehicle_mass + self.cp.fuel_capacity * GAS_DENSITY) * self.cp.wheel_radius
 
         # Return throttle, brake, steer
         return throttle, brake, next_steer

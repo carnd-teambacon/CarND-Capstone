@@ -73,7 +73,7 @@ class DBWNode(object):
                                          BrakeCmd, queue_size=1)
 
         # self.current_pose = None # needed?
-        self.dbw_enabled = False
+        self.dbw_enabled = True
         self.reset_flag = True
         self.current_velocity = None
         self.latest_twist_cmd = None
@@ -93,7 +93,7 @@ class DBWNode(object):
 
     def dbw_enabled_cb(self, dbw_enabled):
         try:
-            self.dbw_enabled = dbw_enabled.data
+            self.dbw_enabled = bool(dbw_enabled.data)
         except Exception:
             self.dbw_enabled = dbw_enabled
 
@@ -104,7 +104,7 @@ class DBWNode(object):
         self.latest_twist_cmd = twist_cmd
 
     def loop(self):
-        rate = rospy.Rate(50) # 50Hz
+        rate = rospy.Rate(10) # 50Hz
         while not rospy.is_shutdown():
 
             # TIME

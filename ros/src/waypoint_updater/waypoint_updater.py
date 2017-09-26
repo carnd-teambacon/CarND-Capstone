@@ -45,22 +45,19 @@ class WaypointUpdater(object):
         rospy.spin()
 
     def pose_cb(self, msg):
-        self.cur_pose = msg.pose        
-        self.publish()
+        if self.waypoints is not None:
+            self.cur_pose = msg.pose        
+            self.publish()
 
     def waypoints_cb(self, lane):
         # do this once and not all the time
         if self.waypoints is None:
-            self.waypoints = lane.waypoints
-            self.publish()
+            self.waypoints = lane.waypoints            
 
     def traffic_cb(self, msg):
-        # TODO: Callback for /traffic_waypoint message. We will implement it later
-        rospy.loginfo("Taffic cb %f", msg.data)
-        self.red_light_waypoint = msg.data
-        #self.set_waypoint_velocity(self.waypoints, self.red_light_waypoint, 0)
-        self.publish()
-       # pass
+        self.red_light_waypoint = msg.data        
+        if self.red_light_waypoint > -1:
+            self.publish()
 
     def obstacle_cb(self, msg):
         # TODO: Callback for /obstacle_waypoint message. We will implement it later
@@ -116,7 +113,8 @@ class WaypointUpdater(object):
     def decelerate(self, waypoints):
         last = waypoints[-1]
         last.twist.twist.linear.x = 0.
-        for wp in waypoints:
+        # start from the waypoint before last and go backwards
+        for wp in reversed(waypoints[:-1]:
             dist = self.distance(wp.pose.pose.position, last.pose.pose.position)
             vel = math.sqrt(2 * MAX_DECEL * dist) * 3.6
             if vel < 1.:
@@ -132,7 +130,6 @@ class WaypointUpdater(object):
             if self.red_light_waypoint is None or self.red_light_waypoint <= next_waypoint_index \
                 or self.red_light_waypoint > next_waypoint_index+LOOKAHEAD_WPS:
                 lookahead_waypoints = self.waypoints[next_waypoint_index:next_waypoint_index+LOOKAHEAD_WPS]
-
             
                 # set the velocity for lookahead waypoints
                 for i in range(len(lookahead_waypoints) - 1):                
