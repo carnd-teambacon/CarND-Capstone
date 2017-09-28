@@ -50,7 +50,7 @@ class Bridge(object):
             '/vehicle/brake_cmd': self.callback_brake,
         }
 
-        self.subscribers = [rospy.Subscriber(e.topic, TYPE[e.type], self.callbacks[e.topic])
+        self.subscribers = [rospy.Subscriber(e.topic, TYPE[e.type], self.callbacks[e.topic], queue_size=2)
                             for e in conf.subscribers]
 
         self.publishers = {e.name: rospy.Publisher(e.topic, TYPE[e.type], queue_size=1)

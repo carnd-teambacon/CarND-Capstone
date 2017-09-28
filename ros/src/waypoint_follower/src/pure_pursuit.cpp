@@ -30,7 +30,7 @@
 
 #include "pure_pursuit_core.h"
 
-constexpr int LOOP_RATE = 30; //processing frequency
+constexpr int LOOP_RATE = 10; //processing frequency
 constexpr int PUB_SUB_QUEUE_SIZE = 1; //processing frequency
 
 
