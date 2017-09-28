@@ -31,8 +31,8 @@ class TLClassifier(object):
         _,contours_green,hierarchy = cv2.findContours(green, cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
         _,contours_yellow,hierarchy = cv2.findContours(yellow, cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
         cv2.drawContours(output, contours_red, -1, (100,0,100), 3)
-        cv2.drawContours(output, contours_green, -1, (100,0,100), 3)
-        cv2.drawContours(output, contours_yellow, -1, (100,0,100), 3)
+        #cv2.drawContours(output, contours_green, -1, (100,0,100), 3)
+        #cv2.drawContours(output, contours_yellow, -1, (100,0,100), 3)
 
        # cv2.imwrite('red.jpg', red);
       #  cv2.imwrite('green.jpg', red);
@@ -42,18 +42,24 @@ class TLClassifier(object):
         for cnt in contours_red:
             red_area = red_area + cv2.contourArea(cnt)
         green_area = 0
-        for cnt in contours_green:
-            green_area = green_area + cv2.contourArea(cnt)
-        yellow_area = 0
-        for cnt in contours_yellow:
-            yellow_area = yellow_area + cv2.contourArea(cnt)
+        #for cnt in contours_green:
+        #    green_area = green_area + cv2.contourArea(cnt)
+        #yellow_area = 0
+        #for cnt in contours_yellow:
+        #    yellow_area = yellow_area + cv2.contourArea(cnt)
 
 
-        if red_area > green_area and red_area > yellow_area:
-            return TrafficLight.RED, output
-        if yellow_area > green_area and yellow_area > red_area:
-            return TrafficLight.YELLOW, output
-        if green_area > red_area and green_area > yellow_area:
-            return TrafficLight.GREEN, output
+       # if red_area > green_area and red_area > yellow_area:
+        #    return TrafficLight.RED, output, red_area
+        #if yellow_area > green_area and yellow_area > red_area:
+        #    return TrafficLight.YELLOW, output, red_area
+        #if green_area > red_area and green_area > yellow_area:
+        #    return TrafficLight.GREEN, output, red_area
+
+        #need to include more image, so ignore other colors
+        #green may be trees.  Just look for red lights
+        if red_area > 50:
+            return TrafficLight.RED, output, red_area
+
             
-        return TrafficLight.UNKNOWN, output
+        return TrafficLight.UNKNOWN, output, red_area

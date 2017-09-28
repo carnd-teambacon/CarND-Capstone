@@ -23,4 +23,5 @@
 
     <!--Camera Info Publisher -->
     <include file="$(find camera_info_publisher)/launch/camera_info_publisher.launch"/>
+    <param name="styx" type="bool" value="false" />
 </launch>

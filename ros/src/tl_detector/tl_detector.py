@@ -34,8 +34,8 @@ class TLDetector(object):
         self.has_image = False
         self.lights = []
 
-        sub1 = rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
-        sub2 = rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
+        sub1 = rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb, queue_size=1)
+        sub2 = rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb, queue_size=1)
 
         '''
         /vehicle/traffic_lights provides you with the location of the traffic light in 3D map space and
@@ -51,7 +51,7 @@ class TLDetector(object):
         self.config = yaml.load(config_string)
 
         self.upcoming_red_light_pub = rospy.Publisher('/traffic_waypoint', Int32, queue_size=1)
-        #self.tl_img_crop_pub = rospy.Publisher('/tl_img_crop', Image, queue_size=1)
+        self.tl_img_crop_pub = rospy.Publisher('/tl_img_crop', Image, queue_size=1)
         #self.tl_center_img_pub = rospy.Publisher('/tl_center_img', Image, queue_size=1)
 
         self.bridge = CvBridge()
@@ -151,7 +151,7 @@ class TLDetector(object):
         try:
             now = rospy.Time.now()
             self.listener.waitForTransform("/base_link",
-                  "/world", now, rospy.Duration(0.1))
+                  "/world", now, rospy.Duration(1.0))
             (transT, rotT) = self.listener.lookupTransform("/base_link",
                   "/world", now)
 
@@ -225,8 +225,8 @@ class TLDetector(object):
 
         #TODO (denise) what should this size be?
         #stoplights are about 1067x356 mm
-        x_top, y_top = self.project_to_image_plane(ptx, pty, ptz, .5, 1)
-        x_bottom, y_bottom = self.project_to_image_plane(ptx, pty, ptz, -.5, -1)
+        x_top, y_top = self.project_to_image_plane(ptx, pty, ptz, 3, 3)
+        x_bottom, y_bottom = self.project_to_image_plane(ptx, pty, ptz, -3, -3)
 
         if x_bottom > width or y_bottom > height or x_top < 0 or y_top < 0:
             return TrafficLight.UNKNOWN
@@ -252,14 +252,16 @@ class TLDetector(object):
         crop_img = cpy[int(y_top):int(y_bottom), int(x_top):int(x_bottom)]
 
         # publish the image with traffic light with markers on center, top left, and bottom right
+
        # cv2.circle(cpy,(x_center, y_center), 8, (255,0,255), -1)
        # cv2.circle(cpy,(x_top, y_top), 8, (255,0,255), -1)
-       # cv2.circle(cpy,(x_bottom, y_bottom), 8, (255,0,255), -1)
-        #tl_center_img_msg = self.bridge.cv2_to_imgmsg(cpy, encoding="bgr8")
-        #self.tl_center_img_pub.publish(tl_center_img_msg)
+      #  cv2.circle(cpy,(x_bottom, y_bottom), 8, (255,0,255), -1)
+       # tl_center_img_msg = self.bridge.cv2_to_imgmsg(cpy, encoding="bgr8")
+       # self.tl_center_img_pub.publish(tl_center_img_msg)
+
 
         # publish the cropped image (hopefully) containing just the traffic light
-       # tl_img_crop_msg = self.bridge.cv2_to_imgmsg(crop_img, encoding="bgr8")
+        #tl_img_crop_msg = self.bridge.cv2_to_imgmsg(crop_img, encoding="bgr8")
 
         
 
@@ -267,22 +269,26 @@ class TLDetector(object):
         #TODO use light location to zoom in on traffic light in image
 
         #Get classification
-        a, show_img = self.light_classifier.get_classification(crop_img)
-        self.debug += 1
-        if self.debug == 2:
-            self.debug = 0
+        classification, show_img, red_area = self.light_classifier.get_classification(crop_img)
+
+        #rospy.loginfo_throttle(2, "Red Light Area" + str(red_area) )
+  
              
-     #   tl_img_crop_msg = self.bridge.cv2_to_imgmsg(show_img, encoding="bgr8")
-     #   self.tl_img_crop_pub.publish(tl_img_crop_msg)
+        tl_img_crop_msg = self.bridge.cv2_to_imgmsg(show_img, encoding="bgr8")
+        self.tl_img_crop_pub.publish(tl_img_crop_msg)
         #return self.light_classifier.get_classification(cv_image)
         #rospy.loginfo_throttle(2, "Light: " + str(a))
 
-        return a
+        return classification
 
-    def reshape_image(self, image):
-        img = cv2.resize(image, (64, 64))
-        img = img/255
-        return img[None, :]
+    def generate_light(self, x, y, z):
+        
+        light = TrafficLight()
+        light.pose = PoseStamped()
+        light.pose.pose.position.x = x
+        light.pose.pose.position.y = y
+        light.pose.pose.position.z = z
+        return light
 
     def process_traffic_lights(self):
         """Finds closest visible traffic light, if one exists, and determines its
@@ -300,17 +306,21 @@ class TLDetector(object):
         stop_line_positions = self.config['stop_line_positions']
         #pose = geometry_msgs.msg.PoseStamped()
         
+
         if(self.pose and self.waypoints):
             #TODO (denise) make sure the point is not behind me
             light_position = self.get_closest_index(self.pose.pose, self.lights)
-            state = self.lights[light_position].state
+           # state = self.lights[light_position].state
             light_wp = self.get_closest_index(self.lights[light_position].pose.pose, self.waypoints.waypoints)
-           # for light_pos in stop_line_positions:
-           #     light_tmp = self.create_light(light_pos[0], light_pos[1], 0., 0., TrafficLight.UNKNOWN)
+            lines = list()
+            for light_pos in stop_line_positions:
+                light =  self.generate_light(light_pos[0], light_pos[1], 0.)
+                lines.append(light)
+            line_wp = self.get_closest_index(lines[light_position].pose.pose, self.waypoints.waypoints)
             #TODO (denise) this should be the final state used
             state = self.get_light_state(self.lights[light_position])
             #rospy.loginfo_throttle(2, "Light: " + str(state))
-            return light_wp, state
+            return line_wp, state
 
 
         if light:
