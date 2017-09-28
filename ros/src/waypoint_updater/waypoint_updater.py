@@ -111,6 +111,8 @@ class WaypointUpdater(object):
         return closest_waypoint
 
     def decelerate(self, waypoints):
+        if len(waypoints) < 1:
+            return None
         last = waypoints[-1]
         first = waypoints[0]
         last.twist.twist.linear.x = 0.
@@ -123,7 +125,7 @@ class WaypointUpdater(object):
             if vel < 1.:
                 vel = 0.
             wp.twist.twist.linear.x = min(vel, wp.twist.twist.linear.x)
-        rospy.loginfo( "slow doesn  vel: " + str(waypoints[0].twist.twist.linear.x))
+        #rospy.loginfo( "slow doesn  vel: " + str(waypoints[0].twist.twist.linear.x))
         return waypoints
 
     def publish(self):
@@ -139,11 +141,11 @@ class WaypointUpdater(object):
                 # set the velocity for lookahead waypoints
                 for i in range(len(lookahead_waypoints) - 1):                
                     # convert 10 miles per hour to meters per sec
-                    self.set_waypoint_velocity(lookahead_waypoints, i, (10 * 1609.34) / (60 * 60))
+                    self.set_waypoint_velocity(lookahead_waypoints, i, (4 * 1609.34) / (60 * 60))
 
             else:
                 #rospy.loginfo("Decelerate")
-                lookahead_waypoints = self.waypoints[next_waypoint_index:self.red_light_waypoint-15]
+                lookahead_waypoints = self.waypoints[next_waypoint_index:self.red_light_waypoint-30]
                 lookahead_waypoints = self.decelerate(lookahead_waypoints)
 
             if DEBUG_MODE:

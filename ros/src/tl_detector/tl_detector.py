@@ -15,12 +15,11 @@ import sys
 import math
 import numpy
 import os
-
-import os
+import PIL 
 os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
 
-from keras.models import load_model
-from keras.preprocessing.image import load_img, img_to_array
+#from keras.models import load_model
+#from keras.preprocessing.image import load_img, img_to_array
 #from pyquaternion import Quaternion
 
 STATE_COUNT_THRESHOLD = 3
@@ -64,7 +63,7 @@ class TLDetector(object):
         self.last_wp = -1
         self.state_count = 0
 
-        #model.summary()
+        self.debug = 0
 
         rospy.spin()
 
@@ -105,7 +104,7 @@ class TLDetector(object):
             self.last_wp = light_wp
             self.upcoming_red_light_pub.publish(Int32(light_wp))
         else:
-            #i = 1
+            #pass
             self.upcoming_red_light_pub.publish(Int32(self.last_wp))
         self.state_count += 1
 
@@ -152,7 +151,7 @@ class TLDetector(object):
         try:
             now = rospy.Time.now()
             self.listener.waitForTransform("/base_link",
-                  "/world", now, rospy.Duration(1.0))
+                  "/world", now, rospy.Duration(0.1))
             (transT, rotT) = self.listener.lookupTransform("/base_link",
                   "/world", now)
 
@@ -200,6 +199,7 @@ class TLDetector(object):
 
         return (x, y)
 
+
     def get_light_state(self, light):
         """Determines the current color of the traffic light
         Args:
@@ -221,7 +221,7 @@ class TLDetector(object):
         pty = light.pose.pose.position.y 
         ptz = light.pose.pose.position.z 
 
-        #x_center, y_center = self.project_to_image_plane(ptx, pty, ptz, 0, 0)
+        x_center, y_center = self.project_to_image_plane(ptx, pty, ptz, 0, 0)
 
         #TODO (denise) what should this size be?
         #stoplights are about 1067x356 mm
@@ -252,25 +252,32 @@ class TLDetector(object):
         crop_img = cpy[int(y_top):int(y_bottom), int(x_top):int(x_bottom)]
 
         # publish the image with traffic light with markers on center, top left, and bottom right
-        #cv2.circle(cpy,(x_center, y_center), 8, (255,0,255), -1)
-        #cv2.circle(cpy,(x_top, y_top), 8, (255,0,255), -1)
-        #cv2.circle(cpy,(x_bottom, y_bottom), 8, (255,0,255), -1)
+       # cv2.circle(cpy,(x_center, y_center), 8, (255,0,255), -1)
+       # cv2.circle(cpy,(x_top, y_top), 8, (255,0,255), -1)
+       # cv2.circle(cpy,(x_bottom, y_bottom), 8, (255,0,255), -1)
         #tl_center_img_msg = self.bridge.cv2_to_imgmsg(cpy, encoding="bgr8")
         #self.tl_center_img_pub.publish(tl_center_img_msg)
 
         # publish the cropped image (hopefully) containing just the traffic light
-        #tl_img_crop_msg = self.bridge.cv2_to_imgmsg(crop_img, encoding="bgr8")
-        #self.tl_img_crop_pub.publish(tl_img_crop_msg)
+       # tl_img_crop_msg = self.bridge.cv2_to_imgmsg(crop_img, encoding="bgr8")
+
+        
 
         #cv2.imwrite('crop.jpg', crop_img)
         #TODO use light location to zoom in on traffic light in image
 
         #Get classification
-        a = self.light_classifier.get_classification(crop_img)
+        a, show_img = self.light_classifier.get_classification(crop_img)
+        self.debug += 1
+        if self.debug == 2:
+            self.debug = 0
+             
+     #   tl_img_crop_msg = self.bridge.cv2_to_imgmsg(show_img, encoding="bgr8")
+     #   self.tl_img_crop_pub.publish(tl_img_crop_msg)
         #return self.light_classifier.get_classification(cv_image)
         #rospy.loginfo_throttle(2, "Light: " + str(a))
 
-        return 0
+        return a
 
     def reshape_image(self, image):
         img = cv2.resize(image, (64, 64))
@@ -291,14 +298,17 @@ class TLDetector(object):
 
         # List of positions that correspond to the line to stop in front of for a given intersection
         stop_line_positions = self.config['stop_line_positions']
+        #pose = geometry_msgs.msg.PoseStamped()
         
         if(self.pose and self.waypoints):
             #TODO (denise) make sure the point is not behind me
             light_position = self.get_closest_index(self.pose.pose, self.lights)
             state = self.lights[light_position].state
             light_wp = self.get_closest_index(self.lights[light_position].pose.pose, self.waypoints.waypoints)
+           # for light_pos in stop_line_positions:
+           #     light_tmp = self.create_light(light_pos[0], light_pos[1], 0., 0., TrafficLight.UNKNOWN)
             #TODO (denise) this should be the final state used
-            calc_state = self.get_light_state(self.lights[light_position])
+            state = self.get_light_state(self.lights[light_position])
             #rospy.loginfo_throttle(2, "Light: " + str(state))
             return light_wp, state
 

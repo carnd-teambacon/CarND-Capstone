@@ -30,9 +30,13 @@ class TLClassifier(object):
         _,contours_red,hierarchy = cv2.findContours(red, cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
         _,contours_green,hierarchy = cv2.findContours(green, cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
         _,contours_yellow,hierarchy = cv2.findContours(yellow, cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
-        #cv2.drawContours(red, contours_red, -1, (0,0,100), 3)
-       # cv2.drawContours(green, contours_green, -1, (0,0,100), 3)
-        #cv2.drawContours(yellow, contours_yellow, -1, (0,0,100), 3)
+        cv2.drawContours(output, contours_red, -1, (100,0,100), 3)
+        cv2.drawContours(output, contours_green, -1, (100,0,100), 3)
+        cv2.drawContours(output, contours_yellow, -1, (100,0,100), 3)
+
+       # cv2.imwrite('red.jpg', red);
+      #  cv2.imwrite('green.jpg', red);
+      #  cv2.imwrite('yello.jpg', red);
 
         red_area = 0
         for cnt in contours_red:
@@ -46,10 +50,10 @@ class TLClassifier(object):
 
 
         if red_area > green_area and red_area > yellow_area:
-            return TrafficLight.RED
+            return TrafficLight.RED, output
         if yellow_area > green_area and yellow_area > red_area:
-            return TrafficLight.YELLOW
+            return TrafficLight.YELLOW, output
         if green_area > red_area and green_area > yellow_area:
-            return TrafficLight.GREEN
+            return TrafficLight.GREEN, output
             
-        return TrafficLight.UNKNOWN
+        return TrafficLight.UNKNOWN, output

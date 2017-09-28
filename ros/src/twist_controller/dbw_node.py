@@ -104,7 +104,7 @@ class DBWNode(object):
         self.latest_twist_cmd = twist_cmd
 
     def loop(self):
-        rate = rospy.Rate(10) # 50Hz
+        rate = rospy.Rate(50)
         while not rospy.is_shutdown():
 
             # TIME
@@ -112,7 +112,7 @@ class DBWNode(object):
             del_time = current_timestamp - self.previous_timestamp
             self.previous_timestamp = current_timestamp
 
-            rospy.loginfo("""dbw_enabled : {}""".format(self.dbw_enabled))
+            #rospy.loginfo("""dbw_enabled : {}""".format(self.dbw_enabled))
             if self.dbw_enabled and self.current_velocity is not None and self.latest_twist_cmd is not None:
 
                 if self.reset_flag:
@@ -124,7 +124,7 @@ class DBWNode(object):
                     current_velocity=self.current_velocity,
                     del_time=del_time)
 
-                rospy.loginfo("""publish: t={} b={} s={}""".format(throttle, brake, steering))
+                #rospy.loginfo("""publish: t={} b={} s={}""".format(throttle, brake, steering))
 
                 self.publish(throttle, brake, steering)
             else:
