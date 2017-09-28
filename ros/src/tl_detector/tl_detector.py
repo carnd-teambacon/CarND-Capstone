@@ -53,7 +53,7 @@ class TLDetector(object):
 
         self.upcoming_red_light_pub = rospy.Publisher('/traffic_waypoint', Int32, queue_size=1)
         #self.tl_img_crop_pub = rospy.Publisher('/tl_img_crop', Image, queue_size=1)
-        #self.tl_center_img_pub = rospy.Publisher('/tl_center_img', Image, queue_size=1)
+        self.tl_center_img_pub = rospy.Publisher('/tl_center_img', Image, queue_size=1)
 
         self.bridge = CvBridge()
         self.light_classifier = TLClassifier()
@@ -69,6 +69,7 @@ class TLDetector(object):
         rospy.spin()
 
     def pose_cb(self, msg):
+        rospy.loginfo("pose callback from tl_det")
         self.pose = msg
 
     def waypoints_cb(self, waypoints):
@@ -221,7 +222,7 @@ class TLDetector(object):
         pty = light.pose.pose.position.y 
         ptz = light.pose.pose.position.z 
 
-        #x_center, y_center = self.project_to_image_plane(ptx, pty, ptz, 0, 0)
+        x_center, y_center = self.project_to_image_plane(ptx, pty, ptz, 0, 0)
 
         #TODO (denise) what should this size be?
         #stoplights are about 1067x356 mm
@@ -252,11 +253,11 @@ class TLDetector(object):
         crop_img = cpy[int(y_top):int(y_bottom), int(x_top):int(x_bottom)]
 
         # publish the image with traffic light with markers on center, top left, and bottom right
-        #cv2.circle(cpy,(x_center, y_center), 8, (255,0,255), -1)
-        #cv2.circle(cpy,(x_top, y_top), 8, (255,0,255), -1)
-        #cv2.circle(cpy,(x_bottom, y_bottom), 8, (255,0,255), -1)
-        #tl_center_img_msg = self.bridge.cv2_to_imgmsg(cpy, encoding="bgr8")
-        #self.tl_center_img_pub.publish(tl_center_img_msg)
+        cv2.circle(cpy,(x_center, y_center), 8, (255,0,255), -1)
+        cv2.circle(cpy,(x_top, y_top), 8, (255,0,255), -1)
+        cv2.circle(cpy,(x_bottom, y_bottom), 8, (255,0,255), -1)
+        tl_center_img_msg = self.bridge.cv2_to_imgmsg(cpy, encoding="bgr8")
+        self.tl_center_img_pub.publish(tl_center_img_msg)
 
         # publish the cropped image (hopefully) containing just the traffic light
         #tl_img_crop_msg = self.bridge.cv2_to_imgmsg(crop_img, encoding="bgr8")
