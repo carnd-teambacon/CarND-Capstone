@@ -30,12 +30,12 @@ class WaypointUpdater(object):
     def __init__(self):
         rospy.init_node('waypoint_updater')
 
-        rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
-        rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
+        rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb, queue_size=1)
+        rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb, queue_size=1)
 
         # TODO: Add a subscriber for /traffic_waypoint and /obstacle_waypoint below        
-        rospy.Subscriber('/traffic_waypoint', Int32, self.traffic_cb)
-        rospy.Subscriber('/obstacle_waypoint', Lane, self.obstacle_cb)
+        rospy.Subscriber('/traffic_waypoint', Int32, self.traffic_cb, queue_size=1)
+        rospy.Subscriber('/obstacle_waypoint', Lane, self.obstacle_cb, queue_size=1)
 
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
         self.cur_pose = None
@@ -45,7 +45,25 @@ class WaypointUpdater(object):
         rospy.spin()
 
     def pose_cb(self, msg):
-        self.cur_pose = msg.pose        
+        self.cur_pose = msg.pose 
+        styx = rospy.get_param('/styx') == 'True'
+        
+        if not rospy.get_param('styx'):
+            rospy.loginfo_throttle(2, "if not get_param('styx'): " + str(styx))
+
+        if not styx:
+            rospy.loginfo_throttle(2, "if not styx: " + str(styx))
+            # have to create a transform to broadcast since the rosbag doesn't
+            #rospy.loginfo("Pose callback - not styx, broadcasting transform")
+            #position = (data['x'], data['y'], data['z'])
+            #orientation = tf.transformations.quaternion_from_euler(0, 0, math.pi * data['yaw']/180.)
+            #self.broadcast_transform("base_link", position, orientation) 
+            #br = tf.TransformBroadcaster()
+            #br.sendTransform(msg.pose.position,
+            #    msg.pose.orientation,
+            #    rospy.Time.now(),
+            #    "base_link",
+            #    "world")
         self.publish()
 
     def waypoints_cb(self, lane):
@@ -56,7 +74,6 @@ class WaypointUpdater(object):
 
     def traffic_cb(self, msg):
         # TODO: Callback for /traffic_waypoint message. We will implement it later
-        rospy.loginfo("Taffic cb %f", msg.data)
         self.red_light_waypoint = msg.data
         #self.set_waypoint_velocity(self.waypoints, self.red_light_waypoint, 0)
         self.publish()
@@ -128,7 +145,7 @@ class WaypointUpdater(object):
         
         if self.cur_pose is not None:
             next_waypoint_index = self.next_waypoint(self.cur_pose, self.waypoints)
-            rospy.loginfo( "Light index: " + str(self.red_light_waypoint) + " next waypoint" + str(next_waypoint_index) )
+            rospy.loginfo_throttle(1, "Light index: " + str(self.red_light_waypoint) + ", next waypoint: " + str(next_waypoint_index) )
             if self.red_light_waypoint is None or self.red_light_waypoint <= next_waypoint_index \
                 or self.red_light_waypoint > next_waypoint_index+LOOKAHEAD_WPS:
                 lookahead_waypoints = self.waypoints[next_waypoint_index:next_waypoint_index+LOOKAHEAD_WPS]
