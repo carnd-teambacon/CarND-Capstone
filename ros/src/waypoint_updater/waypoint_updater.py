@@ -47,9 +47,6 @@ class WaypointUpdater(object):
     def pose_cb(self, msg):
         self.cur_pose = msg.pose 
         styx = rospy.get_param('/styx') == 'True'
-        
-        if not rospy.get_param('styx'):
-            rospy.loginfo_throttle(2, "if not get_param('styx'): " + str(styx))
 
         if not styx:
             rospy.loginfo_throttle(2, "if not styx: " + str(styx))
@@ -140,14 +137,14 @@ class WaypointUpdater(object):
             if vel < 1.:
                 vel = 0.
             wp.twist.twist.linear.x = min(vel, wp.twist.twist.linear.x)
-        rospy.loginfo( "slow doesn  vel: " + str(waypoints[0].twist.twist.linear.x))
+        rospy.loginfo_throttle(2, "slow doesn  vel: " + str(waypoints[0].twist.twist.linear.x))
         return waypoints
 
     def publish(self):
         
         if self.cur_pose is not None:
             next_waypoint_index = self.next_waypoint(self.cur_pose, self.waypoints)
-            #rospy.loginfo( "Light index: " + str(self.red_light_waypoint) + "next waypoint" + str(next_waypoint_index) +  " next waypoint lookahead" + str(next_waypoint_index+LOOKAHEAD_WPS) )
+            rospy.loginfo_throttle(2, "Light index: " + str(self.red_light_waypoint) + ", next waypoint: " + str(next_waypoint_index) +  ", next waypoint lookahead: " + str(next_waypoint_index+LOOKAHEAD_WPS) )
             if self.red_light_waypoint is None or self.red_light_waypoint <= next_waypoint_index+15 \
                 or self.red_light_waypoint > next_waypoint_index+LOOKAHEAD_WPS/4:
                 #rospy.loginfo("Accelerate")
