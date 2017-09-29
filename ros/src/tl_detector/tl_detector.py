@@ -22,7 +22,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
 #from keras.preprocessing.image import load_img, img_to_array
 #from pyquaternion import Quaternion
 
-STATE_COUNT_THRESHOLD = 1
+STATE_COUNT_THRESHOLD = 3
 
 class TLDetector(object):
     def __init__(self):
@@ -69,7 +69,7 @@ class TLDetector(object):
         self.loop()
 
     def loop(self):
-        rate = rospy.Rate(2) #Hz
+        rate = rospy.Rate(5) #Hz
         while not rospy.is_shutdown():
             if self.pose is not None and self.waypoints is not None and self.has_image:
                 light_wp, state = self.process_traffic_lights()
@@ -223,68 +223,12 @@ class TLDetector(object):
         cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
         height, width, channels = cv_image.shape
 
-        #TODO (Denise) these offsets are only for test case, need to modify using normal vector
-        ptx = light.pose.pose.position.x 
-        pty = light.pose.pose.position.y 
-        ptz = light.pose.pose.position.z 
-
-        x_center, y_center = self.project_to_image_plane(ptx, pty, ptz, 0, 0)
-
-        #TODO (denise) what should this size be?
-        #stoplights are about 1067x356 mm
-        x_top, y_top = self.project_to_image_plane(ptx, pty, ptz, 3, 3)
-        x_bottom, y_bottom = self.project_to_image_plane(ptx, pty, ptz, -3, -3)
-
-        if x_bottom > width or y_bottom > height or x_top < 0 or y_top < 0:
-            return TrafficLight.UNKNOWN
-
-        #crop image
-        #TODO (denise) need make sure this is the correct area to crop
-        cpy = cv_image.copy()
-
-        #x_top = self.cap_value(x_top, 0, 600)
-        #x_bottom = self.cap_value(x_bottom, 0, 600)
-        #y_top = self.cap_value(y_top, 0, 800)
-        #y_bottom = self.cap_value(y_bottom, 0, 800)
-
-        #rospy.loginfo_throttle(4, "top left: " + str(x_top) + "," + str(y_top))
-        #rospy.loginfo_throttle(4, "bottom left: " + str(x_bottom) + "," + str(y_bottom))
-
-        #if image is too small, ignore
-        if x_bottom is None or x_top is None or y_top is None or y_bottom is None:
-            return TrafficLight.UNKNOWN
-        if x_bottom - x_top < 20 or y_bottom-y_top < 40:
-            return TrafficLight.UNKNOWN
-
-        crop_img = cpy[int(y_top):int(y_bottom), int(x_top):int(x_bottom)]
-
-        # publish the image with traffic light with markers on center, top left, and bottom right
-
-       # cv2.circle(cpy,(x_center, y_center), 8, (255,0,255), -1)
-       # cv2.circle(cpy,(x_top, y_top), 8, (255,0,255), -1)
-      #  cv2.circle(cpy,(x_bottom, y_bottom), 8, (255,0,255), -1)
-       # tl_center_img_msg = self.bridge.cv2_to_imgmsg(cpy, encoding="bgr8")
-       # self.tl_center_img_pub.publish(tl_center_img_msg)
-
-
-        # publish the cropped image (hopefully) containing just the traffic light
-        #tl_img_crop_msg = self.bridge.cv2_to_imgmsg(crop_img, encoding="bgr8")
-
-        
-
-        #cv2.imwrite('crop.jpg', crop_img)
-        #TODO use light location to zoom in on traffic light in image
 
         #Get classification
-        classification, show_img, red_area = self.light_classifier.get_classification(crop_img)
-
-        #rospy.loginfo_throttle(2, "Red Light Area" + str(red_area) )
-  
-             
+        classification, show_img = self.light_classifier.get_classification(cv_image) #(crop_img)
+     
         #tl_img_crop_msg = self.bridge.cv2_to_imgmsg(show_img, encoding="bgr8")
         #self.tl_img_crop_pub.publish(tl_img_crop_msg)
-        #return self.light_classifier.get_classification(cv_image)
-        #rospy.loginfo_throttle(2, "Light: " + str(a))
 
         return classification
 
