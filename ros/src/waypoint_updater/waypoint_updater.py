@@ -49,8 +49,8 @@ class WaypointUpdater(object):
         self.cur_pose = msg.pose 
         styx = rospy.get_param('/styx') == 'True'
 
-        if not styx:
-            rospy.loginfo_throttle(2, "if not styx: " + str(styx))
+        #if not styx:
+            #rospy.loginfo_throttle(2, "if not styx: " + str(styx))
             # have to create a transform to broadcast since the rosbag doesn't
             #rospy.loginfo("Pose callback - not styx, broadcasting transform")
             #position = (data['x'], data['y'], data['z'])
