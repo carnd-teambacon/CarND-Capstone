@@ -11,7 +11,7 @@ For more information about the project, see the project introduction [here](http
 |-----------------------------------|------------------------------------|
 | Dimitris Traskas (**Team Lead**)  | dtraskas at gmail.com              |
 | Denise Miller                     | denisej199 at gmail.com            |
-| Jeremy Shannon                    | jeremyshannon at gmail.com         |
+| Jeremy Shannon                    | jeremyplaysthedrums at hotmail.com |
 | Edwin Wong                        | sze224 at gmail.com                |
 | Sergio Gordillo                   | sgordillogallardo at gmail.com     |
 
