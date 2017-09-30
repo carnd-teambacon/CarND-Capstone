@@ -19,47 +19,37 @@ class TLClassifier(object):
 
         """
         #TODO (denise) implement yellow and green and compare areas
-        
+        result = TrafficLight.UNKNOWN
         output = image.copy()
-        hsv = cv2.cvtColor(output, cv2.COLOR_BGR2HSV)
-
-        red = cv2.inRange(hsv, np.array([160,140,50]) , np.array([180,255,255]))
-        yellow = cv2.inRange(hsv, np.array([20, 100, 100]), np.array([30, 255, 255]))
-        green = cv2.inRange(hsv, np.array([50, 100, 100]), np.array([70, 255, 255]))
-
-        _,contours_red,hierarchy = cv2.findContours(red, cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
-        _,contours_green,hierarchy = cv2.findContours(green, cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
-        _,contours_yellow,hierarchy = cv2.findContours(yellow, cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
-        cv2.drawContours(output, contours_red, -1, (100,0,100), 3)
-        #cv2.drawContours(output, contours_green, -1, (100,0,100), 3)
-        #cv2.drawContours(output, contours_yellow, -1, (100,0,100), 3)
-
-       # cv2.imwrite('red.jpg', red);
-      #  cv2.imwrite('green.jpg', red);
-      #  cv2.imwrite('yello.jpg', red);
-
-        red_area = 0
-        for cnt in contours_red:
-            red_area = red_area + cv2.contourArea(cnt)
-        green_area = 0
-        #for cnt in contours_green:
-        #    green_area = green_area + cv2.contourArea(cnt)
-        #yellow_area = 0
-        #for cnt in contours_yellow:
-        #    yellow_area = yellow_area + cv2.contourArea(cnt)
+        red = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
 
-       # if red_area > green_area and red_area > yellow_area:
-        #    return TrafficLight.RED, output, red_area
-        #if yellow_area > green_area and yellow_area > red_area:
-        #    return TrafficLight.YELLOW, output, red_area
-        #if green_area > red_area and green_area > yellow_area:
-        #    return TrafficLight.GREEN, output, red_area
+        lower_red = np.array([0,50,50])
+        upper_red = np.array([10,255,255])
+        red1 = cv2.inRange(red, lower_red , upper_red)
 
+
+        lower_red = np.array([170,50,50])
+        upper_red = np.array([180,255,255])
+        red2 = cv2.inRange(red, lower_red , upper_red)
+
+        converted_img = cv2.addWeighted(red1, 1.0, red2, 1.0, 0.0)
+
+        blur_img = cv2.GaussianBlur(converted_img,(15,15),0)
+
+
+        #edges = cv2.Canny(imgray,thresh,thresh*3)
+
+        circles = cv2.HoughCircles(blur_img,cv2.HOUGH_GRADIENT,0.5,41, param1=70,param2=30,minRadius=5,maxRadius=150)
+
+        found = False 
+        if circles is not None:
+            result = TrafficLight.RED
+        #    for i in circles[0,:3]:
+        #        cv2.circle(output,(i[0],i[1]),maxRadius,(255, 100, 100),2)
+      
+        
         #need to include more image, so ignore other colors
         #green may be trees.  Just look for red lights
-        if red_area > 50:
-            return TrafficLight.RED, output, red_area
-
-            
-        return TrafficLight.UNKNOWN, output, red_area
+        #if red_area > 40:
+        return result, output
