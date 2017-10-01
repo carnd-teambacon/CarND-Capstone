@@ -95,13 +95,13 @@ class TLDetector(object):
                 '''
                 Broadcast /base_link to /world transform based on pose, if not styx (because server/bridge already takes care of it there)
                 '''
-                styx = str(rospy.get_param("/styx")) == 'true'
-                rospy.loginfo("styx: " + str(styx))
-                if not styx:
-                    tf_position = (self.pose.pose.position.x, self.pose.pose.position.y, self.pose.pose.position.z)
-                    tf_orientation = (self.pose.pose.orientation.x, self.pose.pose.orientation.y, self.pose.pose.orientation.z, self.pose.pose.orientation.w)
-                    br = tf.TransformBroadcaster()
-                    br.sendTransform(tf_position, tf_orientation, rospy.Time.now(), "base_link", "world")
+                # styx = str(rospy.get_param("/styx")) == 'true'
+                # rospy.loginfo("styx: " + str(styx))
+                # if not styx:
+                #     tf_position = (self.pose.pose.position.x, self.pose.pose.position.y, self.pose.pose.position.z)
+                #     tf_orientation = (self.pose.pose.orientation.x, self.pose.pose.orientation.y, self.pose.pose.orientation.z, self.pose.pose.orientation.w)
+                #     br = tf.TransformBroadcaster()
+                #     br.sendTransform(tf_position, tf_orientation, rospy.Time.now(), "base_link", "world")
                         
                 rate.sleep()
 
