@@ -26,7 +26,7 @@ LOOKAHEAD_WPS = 200 # Number of waypoints we will publish. You can change this n
 DEBUG_MODE = False
 MAX_DECEL = 0.5
 STOP_DIST = 5.0
-TARGET_SPEED_MPH = 10
+TARGET_SPEED_MPH = 30
 
 class WaypointUpdater(object):
     def __init__(self):
@@ -45,12 +45,19 @@ class WaypointUpdater(object):
         self.red_light_waypoint = None      
         self.waypoints = None
 
-        rospy.spin()
+        self.loop()
+
+    def loop(self):
+        rate = rospy.Rate(10) #Hz
+        while not rospy.is_shutdown():
+            if self.waypoints is not None:
+                self.publish()
+            rate.sleep()
 
     def pose_cb(self, msg):
         self.cur_pose = msg.pose 
-        if self.waypoints is not None:                
-            self.publish()
+        # if self.waypoints is not None:                
+        #     self.publish()
 
     def waypoints_cb(self, lane):
         # do this once and not all the time
@@ -60,8 +67,8 @@ class WaypointUpdater(object):
     def traffic_cb(self, msg):
         self.red_light_waypoint = msg.data        
         rospy.loginfo("Detected light: " + str(msg.data))
-        if self.red_light_waypoint > -1:
-            self.publish()
+        # if self.red_light_waypoint > -1:
+        #     self.publish()
 
     def obstacle_cb(self, msg):
         # TODO: Callback for /obstacle_waypoint message. We will implement it later
