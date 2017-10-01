@@ -51,7 +51,7 @@ class TLDetector(object):
         self.config = yaml.load(config_string)
 
         self.upcoming_red_light_pub = rospy.Publisher('/traffic_waypoint', Int32, queue_size=1)
-        #self.tl_img_crop_pub = rospy.Publisher('/tl_img_crop', Image, queue_size=1)
+        self.tl_img_crop_pub = rospy.Publisher('/tl_img_crop', Image, queue_size=1)
         #self.tl_center_img_pub = rospy.Publisher('/tl_center_img', Image, queue_size=1)
 
         self.bridge = CvBridge()
@@ -91,7 +91,19 @@ class TLDetector(object):
                 else:
                     self.upcoming_red_light_pub.publish(Int32(self.last_wp))
                 self.state_count += 1
-            rate.sleep()
+
+                '''
+                Broadcast /base_link to /world transform based on pose, if not styx (because server/bridge already takes care of it there)
+                '''
+                styx = str(rospy.get_param("/styx")) == 'true'
+                rospy.loginfo("styx: " + str(styx))
+                if not styx:
+                    tf_position = (self.pose.pose.position.x, self.pose.pose.position.y, self.pose.pose.position.z)
+                    tf_orientation = (self.pose.pose.orientation.x, self.pose.pose.orientation.y, self.pose.pose.orientation.z, self.pose.pose.orientation.w)
+                    br = tf.TransformBroadcaster()
+                    br.sendTransform(tf_position, tf_orientation, rospy.Time.now(), "base_link", "world")
+                        
+                rate.sleep()
 
     def pose_cb(self, msg):
         self.pose = msg
@@ -161,7 +173,6 @@ class TLDetector(object):
                   "/world", now, rospy.Duration(1.0))
             (transT, rotT) = self.listener.lookupTransform("/base_link",
                   "/world", now)
-
         except (tf.Exception, tf.LookupException, tf.ConnectivityException):
             rospy.logerr("Failed to find camera to map transform")
             return None, None
@@ -223,12 +234,48 @@ class TLDetector(object):
         cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
         height, width, channels = cv_image.shape
 
+        ptx = light.pose.pose.position.x 		
+        pty = light.pose.pose.position.y 		
+        ptz = light.pose.pose.position.z 		
+ 		
+        x_center, y_center = self.project_to_image_plane(ptx, pty, ptz, 0, 0)		
+        x_top, y_top = self.project_to_image_plane(ptx, pty, ptz, .5, 1.0)
+        x_bottom, y_bottom = self.project_to_image_plane(ptx, pty, ptz, -.5, -1.0)
+        
+        if x_bottom > width or y_bottom > height or x_top < 0 or y_top < 0:
+            return TrafficLight.UNKNOWN
+
+        cpy = cv_image.copy()		
+ 		
+        #x_top = self.cap_value(x_top, 0, 600)		
+        #x_bottom = self.cap_value(x_bottom, 0, 600)		
+        #y_top = self.cap_value(y_top, 0, 800)
+        #y_bottom = self.cap_value(y_bottom, 0, 800)
+        # 
+        #rospy.loginfo_throttle(4, "top left: " + str(x_top) + "," + str(y_top))		#rospy.loginfo_throttle(4, "bottom left: " + str(x_bottom) + "," + str(y_bottom))
+        # 
+        #if image is too small, ignore
+        if x_bottom is None or x_top is None or y_top is None or y_bottom is None:
+            return TrafficLight.UNKNOWN
+        if x_bottom - x_top < 20 or y_bottom-y_top < 40:
+            return TrafficLight.UNKNOWN		
+        
+        crop_img = cpy[int(y_top):int(y_bottom), int(x_top):int(x_bottom)]	
+        
+        # publish the image with traffic light with markers on center, top left, and bottom right	
+        
+        # cv2.circle(cpy,(x_center, y_center), 8, (255,0,255), -1)	
+        # cv2.circle(cpy,(x_top, y_top), 8, (255,0,255), -1)
+        # cv2.circle(cpy,(x_bottom, y_bottom), 8, (255,0,255), -1)
+        # tl_center_img_msg = self.bridge.cv2_to_imgmsg(cpy, encoding="bgr8")
+        # self.tl_center_img_pub.publish(tl_center_img_msg)
 
         #Get classification
-        classification, show_img = self.light_classifier.get_classification(cv_image) #(crop_img)
+        #classification, show_img = self.light_classifier.get_classification(cv_image) #(crop_img)
+        classification, show_img = self.light_classifier.get_classification(crop_img)
      
-        #tl_img_crop_msg = self.bridge.cv2_to_imgmsg(show_img, encoding="bgr8")
-        #self.tl_img_crop_pub.publish(tl_img_crop_msg)
+        tl_img_crop_msg = self.bridge.cv2_to_imgmsg(show_img, encoding="bgr8")
+        self.tl_img_crop_pub.publish(tl_img_crop_msg)
 
         return classification
 

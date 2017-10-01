@@ -26,7 +26,7 @@ LOOKAHEAD_WPS = 200 # Number of waypoints we will publish. You can change this n
 DEBUG_MODE = False
 MAX_DECEL = 0.5
 STOP_DIST = 5.0
-TARGET_SPEED_MPH = 30
+TARGET_SPEED_MPH = 10
 
 class WaypointUpdater(object):
     def __init__(self):
