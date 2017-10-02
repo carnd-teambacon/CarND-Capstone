@@ -177,6 +177,15 @@ class TLDetector(object):
             rospy.logerr("Failed to find camera to map transform")
             return None, None
 
+        # simply using the current pose instead of waitForTransform doesn't seem to work - they're not the same
+        # transT2 = (-self.pose.pose.position.x, -self.pose.pose.position.y, -self.pose.pose.position.z)
+        # rotT2 = (-self.pose.pose.orientation.x, -self.pose.pose.orientation.y, -self.pose.pose.orientation.z, self.pose.pose.orientation.w)
+
+        # rospy.loginfo("trans1: " + str(transT))
+        # rospy.loginfo("trans2: " + str(transT2))
+        # rospy.loginfo("rot1: " + str(rotT))
+        # rospy.loginfo("rot2: " + str(rotT2))
+
         rpy = tf.transformations.euler_from_quaternion(rotT)
         yaw = rpy[2]
 
@@ -200,7 +209,8 @@ class TLDetector(object):
         # DELETE THIS MAYBE - MANUAL TWEAKS TO GET THE PROJECTION TO COME OUT CORRECTLY IN SIMULATOR
         # just override the simulator parameters. probably need a more reliable way to determine if 
         # using simulator and not real car
-        if fx < 10:
+        styx = (str(rospy.get_param('/styx')).upper() == ('true').upper())
+        if styx:            
             fx = 2574
             fy = 2744
             point_to_cam[2] -= 1.0
@@ -264,18 +274,18 @@ class TLDetector(object):
         
         # publish the image with traffic light with markers on center, top left, and bottom right	
         
-        # cv2.circle(cpy,(x_center, y_center), 8, (255,0,255), -1)	
+        cv2.circle(cpy,(x_center, y_center), 8, (255,0,255), -1)	
         # cv2.circle(cpy,(x_top, y_top), 8, (255,0,255), -1)
         # cv2.circle(cpy,(x_bottom, y_bottom), 8, (255,0,255), -1)
-        # tl_center_img_msg = self.bridge.cv2_to_imgmsg(cpy, encoding="bgr8")
-        # self.tl_center_img_pub.publish(tl_center_img_msg)
+        tl_img_crop_msg = self.bridge.cv2_to_imgmsg(cpy, encoding="bgr8")
+        self.tl_img_crop_pub.publish(tl_img_crop_msg)
 
         #Get classification
         #classification, show_img = self.light_classifier.get_classification(cv_image) #(crop_img)
         classification, show_img = self.light_classifier.get_classification(crop_img)
      
-        tl_img_crop_msg = self.bridge.cv2_to_imgmsg(show_img, encoding="bgr8")
-        self.tl_img_crop_pub.publish(tl_img_crop_msg)
+        # tl_img_crop_msg = self.bridge.cv2_to_imgmsg(show_img, encoding="bgr8")
+        # self.tl_img_crop_pub.publish(tl_img_crop_msg)
 
         return classification
 

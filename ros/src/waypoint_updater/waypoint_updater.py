@@ -52,6 +52,19 @@ class WaypointUpdater(object):
         while not rospy.is_shutdown():
             if self.waypoints is not None:
                 self.publish()
+            # broadcast a transform, maybe
+            styx = (str(rospy.get_param('/styx')).upper() == ('true').upper())
+            if not styx and self.cur_pose is not None:
+                # rospy.loginfo('not styx and cur_pose')
+                ps = self.cur_pose
+                position = (ps.position.x, ps.position.y, ps.position.z)
+                orientation = (ps.orientation.x, ps.orientation.y, ps.orientation.z, ps.orientation.w)
+                br = tf.TransformBroadcaster()
+                br.sendTransform(position,
+                    orientation,
+                    rospy.Time.now(),
+                    "base_link",
+                    "world")
             rate.sleep()
 
     def pose_cb(self, msg):
