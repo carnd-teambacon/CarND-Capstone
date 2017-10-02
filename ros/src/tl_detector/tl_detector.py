@@ -288,13 +288,8 @@ class TLDetector(object):
         #classification, show_img = self.light_classifier.get_classification(cv_image) #(crop_img)
         classification, show_img = self.light_classifier.get_classification(crop_img, self.is_site_image)
      
-<<<<<<< HEAD
         # tl_img_crop_msg = self.bridge.cv2_to_imgmsg(show_img, encoding="bgr8")
         # self.tl_img_crop_pub.publish(tl_img_crop_msg)
-=======
-        #tl_img_crop_msg = self.bridge.cv2_to_imgmsg(show_img, encoding="bgr8")
-       # self.tl_img_crop_pub.publish(tl_img_crop_msg)
->>>>>>> 6153d078d6ee63ca6b733ca72c3b5a506a14c6d5
 
         return classification
 
