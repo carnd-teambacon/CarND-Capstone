@@ -62,6 +62,7 @@ class TLDetector(object):
         self.last_state = TrafficLight.UNKNOWN
         self.last_wp = -1
         self.state_count = 0
+        self.is_site_image = False
 
         self.debug = 0
 
@@ -206,6 +207,9 @@ class TLDetector(object):
             point_to_cam[2] -= 1.0
             cx = image_width/2 - 30
             cy = image_height + 50
+            self.is_site_image = False
+        else:
+            self.is_site_image = True
         ##########################################################################################
 
         x = -point_to_cam[1] * fx / point_to_cam[0]; 
@@ -272,10 +276,10 @@ class TLDetector(object):
 
         #Get classification
         #classification, show_img = self.light_classifier.get_classification(cv_image) #(crop_img)
-        classification, show_img = self.light_classifier.get_classification(crop_img)
+        classification, show_img = self.light_classifier.get_classification(crop_img, self.is_site_image)
      
-        tl_img_crop_msg = self.bridge.cv2_to_imgmsg(show_img, encoding="bgr8")
-        self.tl_img_crop_pub.publish(tl_img_crop_msg)
+        #tl_img_crop_msg = self.bridge.cv2_to_imgmsg(show_img, encoding="bgr8")
+       # self.tl_img_crop_pub.publish(tl_img_crop_msg)
 
         return classification
 

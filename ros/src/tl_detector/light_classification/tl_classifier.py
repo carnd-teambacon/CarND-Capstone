@@ -8,7 +8,7 @@ class TLClassifier(object):
         #self.model = load_model('light_classifier_model.h5')
         pass
 
-    def get_classification(self, image):
+    def get_classification(self, image, is_site_image):
         """Determines the color of the traffic light in the image
 
         Args:
@@ -19,23 +19,37 @@ class TLClassifier(object):
 
         """
         #TODO (denise) implement yellow and green and compare areas
-        result = TrafficLight.UNKNOWN
+       # cv2.imwrite(name, image)
         output = image.copy()
-        red = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        result = TrafficLight.UNKNOWN
+
+        #find rectable
+        hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        if is_site_image:
+            
+            lower_red = np.array([12, 75, 235])
+            upper_red = np.array([112, 255, 255])
+            red = cv2.inRange(hsv, lower_red , upper_red)
+            blur_img = cv2.medianBlur(red,15)
+
+        else:
+            lower_red = np.array([0,50,50])
+            upper_red = np.array([10,255,255])
+            red1 = cv2.inRange(hsv, lower_red , upper_red)
 
 
-        lower_red = np.array([0,50,50])
-        upper_red = np.array([10,255,255])
-        red1 = cv2.inRange(red, lower_red , upper_red)
+            lower_red = np.array([170,50,50])
+            upper_red = np.array([180,255,255])
+            red2 = cv2.inRange(hsv, lower_red , upper_red)
+
+            red = cv2.addWeighted(red1, 1.0, red2, 1.0, 0.0)
+            blur_img = cv2.GaussianBlur(red,(15,15),0)
 
 
-        lower_red = np.array([170,50,50])
-        upper_red = np.array([180,255,255])
-        red2 = cv2.inRange(red, lower_red , upper_red)
+        
+        edges = cv2.Canny(blur_img,50,200)
 
-        converted_img = cv2.addWeighted(red1, 1.0, red2, 1.0, 0.0)
-
-        blur_img = cv2.GaussianBlur(converted_img,(15,15),0)
+        clr = cv2.cvtColor(blur_img,cv2.COLOR_GRAY2RGB) 
 
 
         #edges = cv2.Canny(imgray,thresh,thresh*3)
@@ -45,11 +59,11 @@ class TLClassifier(object):
         found = False 
         if circles is not None:
             result = TrafficLight.RED
-        #    for i in circles[0,:3]:
-        #        cv2.circle(output,(i[0],i[1]),maxRadius,(255, 100, 100),2)
+            for i in circles[0,:3]:
+                cv2.circle(clr,(i[0],i[1]),i[2],(255, 100, 100),2)
       
         
         #need to include more image, so ignore other colors
         #green may be trees.  Just look for red lights
         #if red_area > 40:
-        return result, output
+        return result, clr
