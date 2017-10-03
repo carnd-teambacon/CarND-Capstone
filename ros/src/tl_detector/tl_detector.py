@@ -62,6 +62,7 @@ class TLDetector(object):
         self.last_state = TrafficLight.UNKNOWN
         self.last_wp = -1
         self.state_count = 0
+        self.styx = (str(rospy.get_param('/styx')).upper() == ('true').upper())
         self.is_site_image = False
 
         self.debug = 0
@@ -200,18 +201,17 @@ class TLDetector(object):
         point_to_cam[1] = point_to_cam[1] + offsetX
         point_to_cam[2] = point_to_cam[2] + offsetY
 
-        #rospy.loginfo_throttle(3, "traffic light location: " + str(ptx) + "," + str(pty) + "," + str(ptz))
+        rospy.loginfo_throttle(3, "traffic light location: " + str(ptx) + "," + str(pty) + "," + str(ptz))
         #rospy.loginfo_throttle(3, "cam to world trans: " + str(transT))
         #rospy.loginfo_throttle(3, "cam to world rot: " + str(rotT))
         #rospy.loginfo_throttle(3, "roll, pitch, yaw: " + str(rpy))
-        #rospy.loginfo_throttle(3, "camera to traffic light: " + str(point_to_cam))
+        rospy.loginfo_throttle(3, "camera to traffic light: " + str(point_to_cam))
 
         ##########################################################################################
         # DELETE THIS MAYBE - MANUAL TWEAKS TO GET THE PROJECTION TO COME OUT CORRECTLY IN SIMULATOR
         # just override the simulator parameters. probably need a more reliable way to determine if 
         # using simulator and not real car
-        styx = (str(rospy.get_param('/styx')).upper() == ('true').upper())
-        if styx:            
+        if self.styx:            
             fx = 2574
             fy = 2744
             point_to_cam[2] -= 1.0
@@ -219,6 +219,7 @@ class TLDetector(object):
             cy = image_height + 50
             self.is_site_image = False
         else:
+            point_to_cam[2] -= 1.0
             self.is_site_image = True
         ##########################################################################################
 
@@ -227,7 +228,7 @@ class TLDetector(object):
 
         x = int(x + cx)
         y = int(y + cy) 
-        #rospy.loginfo_throttle(3, "traffic light pixel (x,y): " + str(x) + "," + str(y))
+        rospy.loginfo_throttle(3, "traffic light pixel (x,y): " + str(x) + "," + str(y))
 
         return (x, y)
 
@@ -245,7 +246,10 @@ class TLDetector(object):
             return False
 
         self.camera_image.encoding = "rgb8"
-        cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
+        if self.styx:
+            cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
+        else: 
+            cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "rgb8")
         height, width, channels = cv_image.shape
 
         ptx = light.pose.pose.position.x 		
@@ -253,8 +257,8 @@ class TLDetector(object):
         ptz = light.pose.pose.position.z 		
  		
         x_center, y_center = self.project_to_image_plane(ptx, pty, ptz, 0, 0)		
-        x_top, y_top = self.project_to_image_plane(ptx, pty, ptz, .5, 1.0)
-        x_bottom, y_bottom = self.project_to_image_plane(ptx, pty, ptz, -.5, -1.0)
+        x_top, y_top = self.project_to_image_plane(ptx, pty, ptz, 1.0, 1.0)
+        x_bottom, y_bottom = self.project_to_image_plane(ptx, pty, ptz, -1.0, -1.0)
         
         if x_bottom > width or y_bottom > height or x_top < 0 or y_top < 0:
             return TrafficLight.UNKNOWN

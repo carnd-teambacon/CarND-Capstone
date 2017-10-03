@@ -79,7 +79,7 @@ class WaypointUpdater(object):
 
     def traffic_cb(self, msg):
         self.red_light_waypoint = msg.data        
-        rospy.loginfo("Detected light: " + str(msg.data))
+        # rospy.loginfo("Detected light: " + str(msg.data))
         # if self.red_light_waypoint > -1:
         #     self.publish()
 

@@ -11,6 +11,7 @@ from sensor_msgs.msg import Image
 import sensor_msgs.point_cloud2 as pcl2
 from std_msgs.msg import Header
 from cv_bridge import CvBridge, CvBridgeError
+import cv2
 
 from styx_msgs.msg import TrafficLight, TrafficLightArray
 import numpy as np
@@ -176,7 +177,7 @@ class Bridge(object):
         imgString = data["image"]
         image = PIL_Image.open(BytesIO(base64.b64decode(imgString)))
         image_array = np.asarray(image)
-
+        image_array = cv2.resize(image_array, (800,600))
         image_message = self.bridge.cv2_to_imgmsg(image_array, encoding="rgb8")
         self.publishers['image'].publish(image_message)
 
